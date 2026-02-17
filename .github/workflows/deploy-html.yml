@@ -1,0 +1,67 @@
+name: Deploy Agda HTML to Pages
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'S4dot2/**'
+      - 'PaperIndex.agda'
+      - 's4dot2-cut-elimination.agda-lib'
+      - '.github/workflows/deploy-html.yml'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checkout standard cubical library
+        uses: actions/checkout@v4
+        with:
+          repository: agda/cubical
+          ref: master
+          path: cubical
+
+      - name: Setup Agda 2.8.0
+        uses: wenkokke/setup-agda@v2
+        with:
+          agda-version: '2.8.0'
+
+      - name: Cache Agda build
+        uses: actions/cache@v4
+        with:
+          path: |
+            _build/
+            cubical/_build/
+          key: agda-${{ hashFiles('S4dot2/**/*.agda', 'PaperIndex.agda') }}
+          restore-keys: agda-
+
+      - name: Generate HTML
+        run: agda -i . -i cubical --html --html-dir=html PaperIndex.agda
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: html
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

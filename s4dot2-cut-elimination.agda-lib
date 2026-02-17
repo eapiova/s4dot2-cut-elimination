@@ -1,0 +1,4 @@
+name: s4dot2-cut-elimination
+include: .
+depend:
+flags: --cubical --guardedness -WnoUnsupportedIndexedMatch
