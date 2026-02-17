@@ -33,10 +33,23 @@ jobs:
           ref: master
           path: cubical
 
-      - name: Setup Agda 2.8.0
-        uses: wenkokke/setup-agda@v2
+      - name: Setup GHC
+        uses: haskell-actions/setup@v2
         with:
-          agda-version: '2.8.0'
+          ghc-version: '9.8.4'
+          cabal-version: '3.12'
+
+      - name: Cache Cabal packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cabal/store
+          key: cabal-${{ runner.os }}-ghc9.8.4-agda2.8.0
+          restore-keys: cabal-${{ runner.os }}-ghc9.8.4-
+
+      - name: Install Agda 2.8.0
+        run: |
+          cabal update
+          cabal install Agda-2.8.0 -f optimise-heavily -j
 
       - name: Cache Agda build
         uses: actions/cache@v4
