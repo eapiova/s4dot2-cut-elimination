@@ -15,7 +15,7 @@ open import Cubical.Data.Sigma using (_×_; _,_; Σ)
 open import Cubical.Relation.Nullary using (Dec; yes; no) renaming (¬_ to Neg)
 open import Cubical.Data.Nat using (ℕ; max; _+_; suc; snotz; zero; predℕ)
 open import Cubical.Data.Nat.Order using (_≤_; ≤-refl; ≤-trans; left-≤-max; right-≤-max; ≤0→≡0; _<_; suc-≤-suc; pred-≤-pred)
-open import Cubical.Data.Nat.Properties using (+-zero; +-suc; maxSuc; suc-predℕ)
+open import Cubical.Data.Nat.Properties using (+-zero; +-suc; suc-predℕ)
 open import Cubical.Data.Unit using (Unit; tt)
 
 open import S4dot2.Syntax hiding (_⊢_; _≢_)
@@ -159,6 +159,11 @@ s≤s {m} {n} (k , p) = k , (+-suc k m ∙ cong suc p)
 
 inv-s≤s : ∀ {m n} → suc m ≤ suc n → m ≤ n
 inv-s≤s {m} {n} (k , p) = k , (cong predℕ (sym (+-suc k m) ∙ p))
+
+-- In cubical v0.9, max is structural so this is refl.
+-- In later versions, max uses _<ᵇ_ and this is a lemma in Nat.Properties.
+maxSuc : ∀ {n m : ℕ} → max (suc n) (suc m) ≡ suc (max n m)
+maxSuc = refl
 
 max-least : ∀ {m n k} → m ≤ k → n ≤ k → max m n ≤ k
 max-least {zero} {n} {k} mk nk = nk

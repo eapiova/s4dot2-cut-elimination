@@ -14,7 +14,7 @@ open import Cubical.Relation.Nullary using (Dec; yes; no) renaming (¬_ to Neg)
 open import Cubical.Data.Nat using (ℕ; max; _+_; discreteℕ; predℕ; suc; snotz; zero)
 open import Cubical.Data.Nat.Order using (_≤_; ≤-antisym; ≤-refl; pred-≤-pred; ≤-suc; ≤-trans; left-≤-max; right-≤-max; ≤→<; ≤0→≡0; ≤-predℕ; _<_; suc-≤-suc; <-weaken; ¬-<-zero)
 open import Cubical.Induction.WellFounded using (Acc; acc; WellFounded)
-open import Cubical.Data.Nat.Properties using (suc-predℕ; +-zero; +-suc; maxSuc)
+open import Cubical.Data.Nat.Properties using (suc-predℕ; +-zero; +-suc)
 open import Cubical.Data.Sigma using (_,_; Σ)
 
 open import Cubical.Data.Unit using (Unit; tt)
