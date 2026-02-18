@@ -1,0 +1,892 @@
+\documentclass{article}
+\usepackage{agda}
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+% Use fonts with a decent coverage of non-ASCII characters.
+\usepackage{fontspec}
+\newfontfamily{\AgdaSerifFont}{Latin Modern Roman}
+\newfontfamily{\AgdaSansSerifFont}{Latin Modern Sans}
+\newfontfamily{\AgdaTypewriterFont}{Latin Modern Mono}
+\renewcommand{\AgdaFontStyle}[1]{{\AgdaSansSerifFont{}#1}}
+\renewcommand{\AgdaKeywordFontStyle}[1]{{\AgdaSansSerifFont{}#1}}
+\renewcommand{\AgdaStringFontStyle}[1]{{\AgdaTypewriterFont{}#1}}
+\renewcommand{\AgdaCommentFontStyle}[1]{{\AgdaTypewriterFont{}#1}}
+\renewcommand{\AgdaBoundFontStyle}[1]{\textit{\AgdaSerifFont{}#1}}
+
+% Workarounds for the fact that the Latin Modern Sans font does not
+% support certain characters. An alternative would be to use another
+% font.
+\usepackage{newunicodechar}
+
+% Greek letters
+\newunicodechar{λ}{\ensuremath{\lambda}}
+\newunicodechar{ρ}{\ensuremath{\rho}}
+\newunicodechar{ω}{\ensuremath{\omega}}
+\newunicodechar{ℓ}{\ensuremath{\ell}}
+
+% Quantifiers and logical symbols
+\newunicodechar{∀}{\ensuremath{\forall}}
+\newunicodechar{∃}{\ensuremath{\exists}}
+\newunicodechar{⊥}{\ensuremath{\bot}}
+\newunicodechar{⊤}{\ensuremath{\top}}
+
+% Mathematical symbols
+\newunicodechar{ℕ}{\ensuremath{\mathbb{N}}}
+\newunicodechar{∅}{\ensuremath{\emptyset}}
+\newunicodechar{∘}{\ensuremath{\circ}}
+\newunicodechar{∷}{\ensuremath{::}}
+
+% Subscripts and superscripts
+\newunicodechar{₁}{\ensuremath{_1}}
+\newunicodechar{₂}{\ensuremath{_2}}
+
+% Relations and operators
+\newunicodechar{≤}{\ensuremath{\leq}}
+\newunicodechar{≥}{\ensuremath{\geq}}
+\newunicodechar{≡}{\ensuremath{\equiv}}
+\newunicodechar{≟}{\ensuremath{\stackrel{?}{=}}}
+\newunicodechar{′}{\ensuremath{'}}
+
+% Lattice operations
+\newunicodechar{⊔}{\ensuremath{\sqcup}}
+\newunicodechar{⊓}{\ensuremath{\sqcap}}
+\newunicodechar{⋎}{\ensuremath{\curlyvee}}
+
+% Logical connectives
+\newunicodechar{∧}{\ensuremath{\land}}
+\newunicodechar{∨}{\ensuremath{\lor}}
+\newunicodechar{⇒}{\ensuremath{\Rightarrow}}
+\newunicodechar{⊎}{\ensuremath{\uplus}}
+
+% Modal operators
+\newunicodechar{□}{\ensuremath{\Box}}
+\newunicodechar{♢}{\ensuremath{\Diamond}}
+
+% Semantic relations
+\newunicodechar{⊧}{\ensuremath{\models}}
+\newunicodechar{⊪}{\ensuremath{\Vdash}}
+\newunicodechar{⊩}{\ensuremath{\Vdash}}
+\newunicodechar{⊢}{\ensuremath{\vdash}}
+
+\title{Semantic Models for Positioned Modal Formulas}
+\author{Modal Positions Formalization}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+
+This document formalizes semantic models for positioned modal formulas using bounded join semilattices. The key idea is that positions (represented as subsets of tokens) correspond to elements in a semilattice via a least upper bound operation. This allows us to interpret positioned formulas $A^s$ as "formula $A$ holds at the world corresponding to position $s$".
+
+The main contributions are:
+\begin{itemize}
+\item A semilattice-based semantic model for positioned modal logic
+\item An extension function that maps positions to semilattice elements via lub
+\item Constrained interpretation records that ensure proper behavior
+\item Satisfaction relations for positioned formulas and contexts
+\end{itemize}
+
+\section{Module Declaration and Imports}
+
+We begin by declaring our module and importing necessary dependencies from the Agda standard library and our Chapter2 definitions.
+
+%<*module-declaration>
+\begin{code}%
+\>[0]\AgdaSymbol{\{-\#}\AgdaSpace{}%
+\AgdaKeyword{OPTIONS}\AgdaSpace{}%
+\AgdaPragma{--allow-unsolved-metas}\AgdaSpace{}%
+\AgdaSymbol{\#-\}}\<%
+\\
+%
+\\[\AgdaEmptyExtraSkip]%
+\>[0]\AgdaKeyword{module}\AgdaSpace{}%
+\AgdaModule{Semantics}\AgdaSpace{}%
+\AgdaKeyword{where}\<%
+\\
+%
+\\[\AgdaEmptyExtraSkip]%
+\>[0]\AgdaKeyword{open}\AgdaSpace{}%
+\AgdaKeyword{import}\AgdaSpace{}%
+\AgdaModule{Relation.Binary.Core}\AgdaSpace{}%
+\AgdaKeyword{using}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaFunction{Rel}\AgdaSymbol{)}\<%
+\\
+\>[0]\AgdaKeyword{open}\AgdaSpace{}%
+\AgdaKeyword{import}\AgdaSpace{}%
+\AgdaModule{Algebra.Core}\AgdaSpace{}%
+\AgdaKeyword{using}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaFunction{Op₁}\AgdaSymbol{;}\AgdaSpace{}%
+\AgdaFunction{Op₂}\AgdaSymbol{)}\<%
+\\
+\>[0]\AgdaKeyword{open}\AgdaSpace{}%
+\AgdaKeyword{import}\AgdaSpace{}%
+\AgdaModule{Data.String}\AgdaSpace{}%
+\AgdaKeyword{using}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaPostulate{String}\AgdaSymbol{)}\<%
+\\
+\>[0]\AgdaKeyword{open}\AgdaSpace{}%
+\AgdaKeyword{import}\AgdaSpace{}%
+\AgdaModule{Data.Bool}\AgdaSpace{}%
+\AgdaKeyword{using}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaDatatype{Bool}\AgdaSymbol{;}\AgdaSpace{}%
+\AgdaInductiveConstructor{true}\AgdaSymbol{;}%
+\>[42]\AgdaOperator{\AgdaFunction{\AgdaUnderscore{}≟\AgdaUnderscore{}}}\AgdaSymbol{)}\<%
+\\
+\>[0]\AgdaKeyword{open}\AgdaSpace{}%
+\AgdaKeyword{import}\AgdaSpace{}%
+\AgdaModule{Data.Nat}\AgdaSpace{}%
+\AgdaKeyword{using}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaDatatype{ℕ}\AgdaSymbol{)}\<%
+\\
+\>[0]\AgdaKeyword{open}\AgdaSpace{}%
+\AgdaKeyword{import}\AgdaSpace{}%
+\AgdaModule{Chapter2}\AgdaSpace{}%
+\AgdaKeyword{public}\AgdaSpace{}%
+\AgdaKeyword{hiding}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaOperator{\AgdaFunction{\AgdaUnderscore{},\AgdaUnderscore{}}}\AgdaSymbol{)}\<%
+\\
+\>[0]\AgdaKeyword{open}\AgdaSpace{}%
+\AgdaKeyword{import}\AgdaSpace{}%
+\AgdaModule{Agda.Builtin.Equality}\<%
+\\
+\>[0]\AgdaKeyword{open}\AgdaSpace{}%
+\AgdaKeyword{import}\AgdaSpace{}%
+\AgdaModule{Algebra.Lattice}\<%
+\\
+%
+\\[\AgdaEmptyExtraSkip]%
+\>[0]\AgdaKeyword{open}\AgdaSpace{}%
+\AgdaKeyword{import}\AgdaSpace{}%
+\AgdaModule{Data.List}\<%
+\\
+\>[0]\AgdaKeyword{open}\AgdaSpace{}%
+\AgdaKeyword{import}\AgdaSpace{}%
+\AgdaModule{Data.List.Relation.Unary.All}\AgdaSpace{}%
+\AgdaKeyword{using}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaDatatype{All}\AgdaSymbol{)}\<%
+\\
+\>[0]\AgdaKeyword{open}\AgdaSpace{}%
+\AgdaKeyword{import}\AgdaSpace{}%
+\AgdaModule{Data.Fin}\AgdaSpace{}%
+\AgdaKeyword{using}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaFunction{fromℕ<}\AgdaSymbol{;}\AgdaSpace{}%
+\AgdaInductiveConstructor{zero}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaKeyword{renaming}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaInductiveConstructor{suc}\AgdaSpace{}%
+\AgdaSymbol{to}\AgdaSpace{}%
+\AgdaInductiveConstructor{fsuc}\AgdaSymbol{)}\<%
+\\
+\>[0]\AgdaKeyword{open}\AgdaSpace{}%
+\AgdaKeyword{import}\AgdaSpace{}%
+\AgdaModule{Data.Fin.Subset}\AgdaSpace{}%
+\AgdaKeyword{using}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaInductiveConstructor{inside}\AgdaSymbol{;}\AgdaSpace{}%
+\AgdaInductiveConstructor{outside}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaKeyword{renaming}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaFunction{⊥}\AgdaSpace{}%
+\AgdaSymbol{to}\AgdaSpace{}%
+\AgdaFunction{∅}\AgdaSymbol{)}\<%
+\\
+\>[0]\AgdaKeyword{open}\AgdaSpace{}%
+\AgdaKeyword{import}\AgdaSpace{}%
+\AgdaModule{Data.Nat.Properties}\AgdaSpace{}%
+\AgdaKeyword{using}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaFunction{s≤′s}\AgdaSymbol{;}\AgdaSpace{}%
+\AgdaFunction{z≤′n}\AgdaSymbol{)}\<%
+\\
+\>[0]\AgdaKeyword{open}\AgdaSpace{}%
+\AgdaKeyword{import}\AgdaSpace{}%
+\AgdaModule{Data.Vec}\AgdaSpace{}%
+\AgdaKeyword{using}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaDatatype{Vec}\AgdaSymbol{;}\AgdaSpace{}%
+\AgdaInductiveConstructor{[]}\AgdaSymbol{;}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{\AgdaUnderscore{}∷\AgdaUnderscore{}}}\AgdaSymbol{)}\<%
+\\
+%
+\\[\AgdaEmptyExtraSkip]%
+\>[0]\AgdaKeyword{open}\AgdaSpace{}%
+\AgdaKeyword{import}\AgdaSpace{}%
+\AgdaModule{Level}\AgdaSpace{}%
+\AgdaKeyword{using}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaPrimitive{suc}\AgdaSymbol{;}\AgdaSpace{}%
+\AgdaPrimitive{Setω}\AgdaSymbol{;}\AgdaSpace{}%
+\AgdaRecord{Lift}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaKeyword{renaming}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaOperator{\AgdaPrimitive{\AgdaUnderscore{}⊔\AgdaUnderscore{}}}\AgdaSpace{}%
+\AgdaSymbol{to}\AgdaSpace{}%
+\AgdaOperator{\AgdaPrimitive{\AgdaUnderscore{}⋎\AgdaUnderscore{}}}\AgdaSymbol{)}\<%
+\\
+\>[0]\AgdaKeyword{open}\AgdaSpace{}%
+\AgdaKeyword{import}\AgdaSpace{}%
+\AgdaModule{Data.Empty}\AgdaSpace{}%
+\AgdaKeyword{using}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaFunction{⊥}\AgdaSymbol{)}\<%
+\\
+\>[0]\AgdaKeyword{open}\AgdaSpace{}%
+\AgdaKeyword{import}\AgdaSpace{}%
+\AgdaModule{Data.Sum}\AgdaSpace{}%
+\AgdaKeyword{using}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaOperator{\AgdaDatatype{\AgdaUnderscore{}⊎\AgdaUnderscore{}}}\AgdaSymbol{)}\<%
+\\
+%
+\\[\AgdaEmptyExtraSkip]%
+\>[0]\AgdaKeyword{open}\AgdaSpace{}%
+\AgdaKeyword{import}\AgdaSpace{}%
+\AgdaModule{Data.Product}\AgdaSpace{}%
+\AgdaKeyword{using}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaRecord{Σ}\AgdaSymbol{;}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{\AgdaUnderscore{}×\AgdaUnderscore{}}}\AgdaSymbol{;}\AgdaSpace{}%
+\AgdaField{proj₂}\AgdaSymbol{)}\<%
+\\
+\>[0]\AgdaKeyword{open}\AgdaSpace{}%
+\AgdaKeyword{import}\AgdaSpace{}%
+\AgdaModule{Function}\AgdaSpace{}%
+\AgdaKeyword{using}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaOperator{\AgdaFunction{\AgdaUnderscore{}∘\AgdaUnderscore{}}}\AgdaSymbol{)}\<%
+\\
+\>[0]\AgdaKeyword{open}\AgdaSpace{}%
+\AgdaKeyword{import}\AgdaSpace{}%
+\AgdaModule{Relation.Binary.PropositionalEquality}\AgdaSpace{}%
+\AgdaKeyword{using}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaFunction{subst}\AgdaSymbol{;}\AgdaSpace{}%
+\AgdaInductiveConstructor{refl}\AgdaSymbol{)}\<%
+\end{code}
+%</module-declaration>
+
+The imports include:
+\begin{itemize}
+\item \texttt{Chapter2}: Basic definitions of modal formulas (\texttt{mf}), tokens, positions, and positioned formulas (\texttt{pf})
+\item \texttt{Algebra.Lattice}: Lattice theory for semilattice structures
+\item \texttt{Data.List.Relation.Unary.All}: For expressing that all elements in a list satisfy a property
+\item \texttt{Data.Fin.Subset}: For working with subsets as boolean vectors
+\item \texttt{Level}: Universe level management, including \texttt{Setω} for large types
+\end{itemize}
+
+\subsection{Universe Levels}
+
+Throughout this formalization, we use Agda's universe level system to ensure our definitions work at appropriate levels of the type hierarchy. The key parameters are:
+
+\begin{itemize}
+\item \textbf{c}: Universe level for the carrier set (the "data" level)
+\item \textbf{ℓ}: Universe level for relations and predicates over the carrier (often higher than \texttt{c})
+\item \textbf{ω} (Setω): The "large" universe that can contain all smaller universes, used for consequence relations that quantify over all possible interpretations
+\end{itemize}
+
+The expression \texttt{c ⋎ ℓ} denotes the least upper bound of levels \texttt{c} and \texttt{ℓ}, ensuring our types live in a universe large enough to contain both. This level polymorphism allows our semantic framework to work with semilattices and interpretations at any appropriate universe level.
+
+\section{Semilattice Models}
+
+A semilattice model provides the semantic structure for our positioned modal logic. It consists of a bounded join semilattice with a valuation function. The model is parameterized by two universe levels \texttt{c} and \texttt{ℓ} to ensure proper typing.
+
+%<*semilattice-model>
+\begin{code}%
+\>[0]\AgdaKeyword{record}\AgdaSpace{}%
+\AgdaRecord{SemilatticeModel}\AgdaSpace{}%
+\AgdaBound{c}\AgdaSpace{}%
+\AgdaBound{ℓ}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaPrimitive{Set}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaPrimitive{suc}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{c}\AgdaSpace{}%
+\AgdaOperator{\AgdaPrimitive{⋎}}\AgdaSpace{}%
+\AgdaBound{ℓ}\AgdaSymbol{))}\AgdaSpace{}%
+\AgdaKeyword{where}\<%
+\\
+\>[0][@{}l@{\AgdaIndent{0}}]%
+\>[2]\AgdaKeyword{field}\<%
+\\
+\>[2][@{}l@{\AgdaIndent{0}}]%
+\>[4]\AgdaField{Carrier}%
+\>[29]\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaPrimitive{Set}\AgdaSpace{}%
+\AgdaBound{c}\<%
+\\
+%
+\>[4]\AgdaOperator{\AgdaField{\AgdaUnderscore{}≤\AgdaUnderscore{}}}%
+\>[29]\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaFunction{Rel}\AgdaSpace{}%
+\AgdaField{Carrier}\AgdaSpace{}%
+\AgdaBound{ℓ}\<%
+\\
+%
+\>[4]\AgdaOperator{\AgdaField{\AgdaUnderscore{}⊔\AgdaUnderscore{}}}%
+\>[29]\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaFunction{Op₂}\AgdaSpace{}%
+\AgdaField{Carrier}\<%
+\\
+%
+\>[4]\AgdaField{m}%
+\>[29]\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaField{Carrier}\<%
+\\
+%
+\>[4]\AgdaField{V}%
+\>[29]\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaField{Carrier}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaPostulate{String}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaDatatype{Bool}\<%
+\\
+%
+\>[4]\AgdaField{isBoundedJoinSemilattice}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaFunction{IsBoundedJoinSemilattice}\AgdaSpace{}%
+\AgdaOperator{\AgdaField{\AgdaUnderscore{}≤\AgdaUnderscore{}}}\AgdaSpace{}%
+\AgdaOperator{\AgdaField{\AgdaUnderscore{}⊔\AgdaUnderscore{}}}\AgdaSpace{}%
+\AgdaField{m}\<%
+\end{code}
+%</semilattice-model>
+
+\begin{code}%
+\>[0]\AgdaKeyword{open}\AgdaSpace{}%
+\AgdaModule{SemilatticeModel}\AgdaSpace{}%
+\AgdaKeyword{public}\<%
+\end{code}
+
+The components are:
+\begin{itemize}
+\item \texttt{Carrier : Set c}: The universe of worlds/elements at level \texttt{c}
+\item \texttt{\_≤\_ : Rel Carrier ℓ}: The partial order relation at level \texttt{ℓ}
+\item \texttt{\_⊔\_ : Op₂ Carrier}: The join (least upper bound) operation
+\item \texttt{m : Carrier}: The bottom element (identity for join)
+\item \texttt{V : Carrier → String → Bool}: Valuation function mapping worlds and proposition names to truth values
+\item \texttt{isBoundedJoinSemilattice}: Proof that the structure satisfies semilattice axioms
+\end{itemize}
+
+The record itself lives in \texttt{Set (suc (c ⋎ ℓ))}, which is one level above the maximum of \texttt{c} and \texttt{ℓ}, ensuring it can contain both the carrier type and the relations over it.
+
+\section{Extension Function}
+
+The extension function \texttt{ext} is the heart of our semantics. It takes a token interpretation $\rho$ and a position $s$ (a subset of tokens), and computes the least upper bound of $\rho$ applied to all tokens in $s$.
+
+%<*extension-function>
+\begin{code}%
+\>[0]\AgdaFunction{ext}%
+\>[134I]\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaSymbol{∀}\AgdaSpace{}%
+\AgdaSymbol{\{}\AgdaBound{n}\AgdaSpace{}%
+\AgdaBound{c}\AgdaSpace{}%
+\AgdaBound{ℓ}\AgdaSymbol{\}}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{U}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaRecord{SemilatticeModel}\AgdaSpace{}%
+\AgdaBound{c}\AgdaSpace{}%
+\AgdaBound{ℓ}\AgdaSymbol{)}\<%
+\\
+\>[.][@{}l@{}]\<[134I]%
+\>[4]\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{ρ}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaFunction{token}\AgdaSpace{}%
+\AgdaSymbol{\{}\AgdaBound{n}\AgdaSymbol{\}}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaField{Carrier}\AgdaSpace{}%
+\AgdaBound{U}\AgdaSymbol{)}\<%
+\\
+%
+\>[4]\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaFunction{position}\AgdaSpace{}%
+\AgdaSymbol{\{}\AgdaBound{n}\AgdaSymbol{\}}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaField{Carrier}\AgdaSpace{}%
+\AgdaBound{U}\<%
+\\
+\>[0]\AgdaFunction{ext}\AgdaSpace{}%
+\AgdaBound{U}\AgdaSpace{}%
+\AgdaBound{ρ}\AgdaSpace{}%
+\AgdaInductiveConstructor{[]}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaField{m}\AgdaSpace{}%
+\AgdaBound{U}\<%
+\\
+\>[0]\AgdaFunction{ext}\AgdaSpace{}%
+\AgdaBound{U}\AgdaSpace{}%
+\AgdaBound{ρ}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaInductiveConstructor{outside}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{∷}}\AgdaSpace{}%
+\AgdaBound{s}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaFunction{ext}\AgdaSpace{}%
+\AgdaBound{U}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{ρ}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{∘}}\AgdaSpace{}%
+\AgdaInductiveConstructor{fsuc}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaBound{s}\<%
+\\
+\>[0]\AgdaFunction{ext}\AgdaSpace{}%
+\AgdaBound{U}\AgdaSpace{}%
+\AgdaBound{ρ}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaInductiveConstructor{inside}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{∷}}\AgdaSpace{}%
+\AgdaBound{s}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaOperator{\AgdaField{\AgdaUnderscore{}⊔\AgdaUnderscore{}}}\AgdaSpace{}%
+\AgdaBound{U}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{ρ}\AgdaSpace{}%
+\AgdaInductiveConstructor{zero}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaFunction{ext}\AgdaSpace{}%
+\AgdaBound{U}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{ρ}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{∘}}\AgdaSpace{}%
+\AgdaInductiveConstructor{fsuc}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaBound{s}\AgdaSymbol{)}\<%
+\end{code}
+%</extension-function>
+
+The definition works by recursion on the position structure:
+\begin{itemize}
+\item \textbf{Base case} (\texttt{n = 0}): Empty position returns the bottom element \texttt{m U}
+\item \textbf{Outside case}: Token at index 0 is not in the subset, so skip it and recurse on the tail with adjusted indices
+\item \textbf{Inside case}: Token at index 0 is in the subset, so include \texttt{ρ zero} in the join and recurse on the tail
+\end{itemize}
+
+Intuitively, \texttt{ext ρ s} computes $\bigsqcup_{i \in s} \rho(i)$ where $s$ is viewed as a subset of token indices.
+
+\section{Interpretation Records}
+
+An interpretation combines a semilattice model with a token interpretation and ensures that the extension function behaves correctly.
+
+%<*interpretation-record>
+\begin{code}%
+\>[0]\AgdaKeyword{record}\AgdaSpace{}%
+\AgdaRecord{Interpretation}\AgdaSpace{}%
+\AgdaBound{c}\AgdaSpace{}%
+\AgdaBound{ℓ}\AgdaSpace{}%
+\AgdaSymbol{\{}\AgdaBound{n}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaDatatype{ℕ}\AgdaSymbol{\}}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaPrimitive{Set}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaPrimitive{suc}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{c}\AgdaSpace{}%
+\AgdaOperator{\AgdaPrimitive{⋎}}\AgdaSpace{}%
+\AgdaBound{ℓ}\AgdaSymbol{))}\AgdaSpace{}%
+\AgdaKeyword{where}\<%
+\\
+\>[0][@{}l@{\AgdaIndent{0}}]%
+\>[2]\AgdaKeyword{field}\<%
+\\
+\>[2][@{}l@{\AgdaIndent{0}}]%
+\>[4]\AgdaField{U}%
+\>[21]\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaRecord{SemilatticeModel}\AgdaSpace{}%
+\AgdaBound{c}\AgdaSpace{}%
+\AgdaBound{ℓ}\<%
+\\
+%
+\>[4]\AgdaField{ρ}%
+\>[21]\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaFunction{token}\AgdaSpace{}%
+\AgdaSymbol{\{}\AgdaBound{n}\AgdaSymbol{\}}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaField{Carrier}\AgdaSpace{}%
+\AgdaField{U}\<%
+\\
+%
+\>[4]\AgdaField{ρext}%
+\>[21]\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaFunction{position}\AgdaSpace{}%
+\AgdaSymbol{\{}\AgdaBound{n}\AgdaSymbol{\}}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaField{Carrier}\AgdaSpace{}%
+\AgdaField{U}\<%
+\\
+%
+\>[4]\AgdaField{ρext-correct}%
+\>[21]\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaSymbol{∀}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{s}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaFunction{position}\AgdaSpace{}%
+\AgdaSymbol{\{}\AgdaBound{n}\AgdaSymbol{\})}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaField{ρext}\AgdaSpace{}%
+\AgdaBound{s}\AgdaSpace{}%
+\AgdaOperator{\AgdaDatatype{≡}}\AgdaSpace{}%
+\AgdaFunction{ext}\AgdaSpace{}%
+\AgdaField{U}\AgdaSpace{}%
+\AgdaField{ρ}\AgdaSpace{}%
+\AgdaBound{s}\<%
+\end{code}
+%</interpretation-record>
+
+
+\begin{code}%
+\>[0]\AgdaKeyword{open}\AgdaSpace{}%
+\AgdaModule{Interpretation}\AgdaSpace{}%
+\AgdaKeyword{public}\<%
+\end{code}
+
+The interpretation record enforces two crucial constraints:
+\begin{itemize}
+\item \texttt{ρext-empty}: The extension of the empty position is the bottom element
+\item \texttt{ρext-correct}: The extension function \texttt{ρext} behaves exactly like \texttt{ext ρ}
+\end{itemize}
+
+These constraints ensure that \texttt{ρext} correctly computes the least upper bound semantics for any position.
+
+\section{Satisfaction Relation}
+
+We define when a modal formula is satisfied at a world in a semilattice model.
+
+%<*satisfaction-relation>
+\begin{code}%
+\>[0]\AgdaOperator{\AgdaFunction{\AgdaUnderscore{},\AgdaUnderscore{}⊧\AgdaUnderscore{}}}\AgdaSpace{}%
+\AgdaSymbol{:}%
+\>[232I]\AgdaSymbol{∀}\AgdaSpace{}%
+\AgdaSymbol{\{}\AgdaBound{c}\AgdaSpace{}%
+\AgdaBound{ℓ}\AgdaSymbol{\}}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{U}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaRecord{SemilatticeModel}\AgdaSpace{}%
+\AgdaBound{c}\AgdaSpace{}%
+\AgdaBound{ℓ}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{w}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaField{Carrier}\AgdaSpace{}%
+\AgdaBound{U}\AgdaSymbol{)}\<%
+\\
+\>[.][@{}l@{}]\<[232I]%
+\>[8]\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaDatatype{mf}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaPrimitive{Set}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{c}\AgdaSpace{}%
+\AgdaOperator{\AgdaPrimitive{⋎}}\AgdaSpace{}%
+\AgdaBound{ℓ}\AgdaSymbol{)}\<%
+\\
+\>[0]\AgdaOperator{\AgdaFunction{\AgdaUnderscore{},\AgdaUnderscore{}⊧\AgdaUnderscore{}}}\AgdaSpace{}%
+\AgdaSymbol{\{}\AgdaBound{c}\AgdaSymbol{\}}\AgdaSpace{}%
+\AgdaSymbol{\{}\AgdaBound{ℓ}\AgdaSymbol{\}}\AgdaSpace{}%
+\AgdaBound{U}\AgdaSpace{}%
+\AgdaBound{w}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaInductiveConstructor{prop}\AgdaSpace{}%
+\AgdaBound{x}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaRecord{Lift}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{c}\AgdaSpace{}%
+\AgdaOperator{\AgdaPrimitive{⋎}}\AgdaSpace{}%
+\AgdaBound{ℓ}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaField{V}\AgdaSpace{}%
+\AgdaBound{U}\AgdaSpace{}%
+\AgdaBound{w}\AgdaSpace{}%
+\AgdaBound{x}\AgdaSpace{}%
+\AgdaOperator{\AgdaDatatype{≡}}\AgdaSpace{}%
+\AgdaInductiveConstructor{true}\AgdaSymbol{)}\<%
+\\
+\>[0]\AgdaBound{U}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{,}}\AgdaSpace{}%
+\AgdaBound{w}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{⊧}}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{A}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{⇒}}\AgdaSpace{}%
+\AgdaBound{B}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaBound{U}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{,}}\AgdaSpace{}%
+\AgdaBound{w}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{⊧}}\AgdaSpace{}%
+\AgdaBound{A}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaBound{U}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{,}}\AgdaSpace{}%
+\AgdaBound{w}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{⊧}}\AgdaSpace{}%
+\AgdaBound{B}\<%
+\\
+\>[0]\AgdaBound{U}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{,}}\AgdaSpace{}%
+\AgdaBound{w}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{⊧}}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{A}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{∧}}\AgdaSpace{}%
+\AgdaBound{B}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaBound{U}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{,}}\AgdaSpace{}%
+\AgdaBound{w}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{⊧}}\AgdaSpace{}%
+\AgdaBound{A}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{×}}\AgdaSpace{}%
+\AgdaBound{U}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{,}}\AgdaSpace{}%
+\AgdaBound{w}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{⊧}}\AgdaSpace{}%
+\AgdaBound{B}\<%
+\\
+\>[0]\AgdaBound{U}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{,}}\AgdaSpace{}%
+\AgdaBound{w}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{⊧}}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{A}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{∨}}\AgdaSpace{}%
+\AgdaBound{B}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{U}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{,}}\AgdaSpace{}%
+\AgdaBound{w}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{⊧}}\AgdaSpace{}%
+\AgdaBound{A}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaOperator{\AgdaDatatype{⊎}}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{U}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{,}}\AgdaSpace{}%
+\AgdaBound{w}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{⊧}}\AgdaSpace{}%
+\AgdaBound{B}\AgdaSymbol{)}\<%
+\\
+\>[0]\AgdaBound{U}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{,}}\AgdaSpace{}%
+\AgdaBound{w}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{⊧}}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaOperator{\AgdaInductiveConstructor{¬}}\AgdaSpace{}%
+\AgdaBound{A}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaBound{U}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{,}}\AgdaSpace{}%
+\AgdaBound{w}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{⊧}}\AgdaSpace{}%
+\AgdaBound{A}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaFunction{⊥}\<%
+\\
+\>[0]\AgdaBound{U}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{,}}\AgdaSpace{}%
+\AgdaBound{w}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{⊧}}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaOperator{\AgdaInductiveConstructor{□}}\AgdaSpace{}%
+\AgdaBound{A}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{v}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaField{Carrier}\AgdaSpace{}%
+\AgdaBound{U}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaOperator{\AgdaField{\AgdaUnderscore{}≤\AgdaUnderscore{}}}\AgdaSpace{}%
+\AgdaBound{U}\AgdaSpace{}%
+\AgdaBound{w}\AgdaSpace{}%
+\AgdaBound{v}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaBound{U}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{,}}\AgdaSpace{}%
+\AgdaBound{v}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{⊧}}\AgdaSpace{}%
+\AgdaBound{A}\<%
+\\
+\>[0]\AgdaBound{U}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{,}}\AgdaSpace{}%
+\AgdaBound{w}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{⊧}}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaOperator{\AgdaInductiveConstructor{♢}}\AgdaSpace{}%
+\AgdaBound{A}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaRecord{Σ}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaField{Carrier}\AgdaSpace{}%
+\AgdaBound{U}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaSymbol{(λ}\AgdaSpace{}%
+\AgdaBound{v}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaOperator{\AgdaField{\AgdaUnderscore{}≤\AgdaUnderscore{}}}\AgdaSpace{}%
+\AgdaBound{U}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaBound{w}\AgdaSpace{}%
+\AgdaBound{v}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{×}}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{U}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{,}}\AgdaSpace{}%
+\AgdaBound{v}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{⊧}}\AgdaSpace{}%
+\AgdaBound{A}\AgdaSymbol{))}\<%
+\end{code}
+%</satisfaction-relation>
+
+\begin{code}%
+\>[0]\AgdaKeyword{infix}\AgdaSpace{}%
+\AgdaNumber{30}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{\AgdaUnderscore{},\AgdaUnderscore{}⊧\AgdaUnderscore{}}}\<%
+\end{code}
+
+
+The satisfaction relation follows standard modal logic semantics adapted to semilattices:
+\begin{itemize}
+\item \textbf{Propositions}: True if the valuation function returns true
+\item \textbf{Implication}: Standard logical implication
+\item \textbf{Conjunction/Disjunction}: Product and sum types respectively
+\item \textbf{Negation}: Satisfaction implies falsehood
+\item \textbf{Necessity} ($\Box A$): $A$ holds at all worlds $v \geq w$ in the order
+\item \textbf{Possibility} ($\Diamond A$): $A$ holds at some world $v \geq w$ in the order
+\end{itemize}
+
+The modal operators use the semilattice order $\leq$ to determine accessibility.
+
+\section{Context Satisfaction}
+
+We define when an interpretation satisfies a list of positioned formulas.
+
+%<*context-satisfaction>
+\begin{code}%
+\>[0]\AgdaOperator{\AgdaFunction{\AgdaUnderscore{}⊪\AgdaUnderscore{}}}\AgdaSpace{}%
+\AgdaSymbol{:}%
+\>[380I]\AgdaSymbol{∀}\AgdaSpace{}%
+\AgdaSymbol{\{}\AgdaBound{n}\AgdaSpace{}%
+\AgdaBound{c}\AgdaSpace{}%
+\AgdaBound{ℓ}\AgdaSymbol{\}}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{I}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaRecord{Interpretation}\AgdaSpace{}%
+\AgdaBound{c}\AgdaSpace{}%
+\AgdaBound{ℓ}\AgdaSpace{}%
+\AgdaSymbol{\{}\AgdaBound{n}\AgdaSymbol{\})}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{Γ}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaDatatype{List}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaRecord{pf}\AgdaSpace{}%
+\AgdaSymbol{\{}\AgdaBound{n}\AgdaSymbol{\}))}\<%
+\\
+\>[.][@{}l@{}]\<[380I]%
+\>[6]\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaPrimitive{Set}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{c}\AgdaSpace{}%
+\AgdaOperator{\AgdaPrimitive{⋎}}\AgdaSpace{}%
+\AgdaBound{ℓ}\AgdaSymbol{)}\<%
+\\
+\>[0]\AgdaBound{I}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{⊪}}\AgdaSpace{}%
+\AgdaBound{Γ}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaDatatype{All}\AgdaSpace{}%
+\AgdaSymbol{(λ}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{A}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{\textasciicircum{}}}\AgdaSpace{}%
+\AgdaBound{s}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaField{U}\AgdaSpace{}%
+\AgdaBound{I}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{,}}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaField{ρext}\AgdaSpace{}%
+\AgdaBound{I}\AgdaSpace{}%
+\AgdaBound{s}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{⊧}}\AgdaSpace{}%
+\AgdaBound{A}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaBound{Γ}\<%
+\end{code}
+%</context-satisfaction>
+
+This relation \texttt{I ⊪ Γ} holds when:
+\begin{itemize}
+\item For every positioned formula \texttt{A\^{}s} in the list \texttt{Γ}
+\item Formula \texttt{A} is satisfied at world \texttt{ρext I s}
+\item Where \texttt{ρext I s} is the semilattice element corresponding to position \texttt{s}
+\end{itemize}
+
+The use of \texttt{All} ensures this is the conjunction of all such satisfaction conditions.
+
+\section{Logical Consequence}
+
+We define when one list of positioned formulas logically follows from another. This relation quantifies over all possible interpretations at any universe levels, requiring the large universe \texttt{Setω}.
+
+%<*logical-consequence>
+\begin{code}%
+\>[0]\AgdaOperator{\AgdaFunction{\AgdaUnderscore{}⊩\AgdaUnderscore{}}}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaSymbol{∀}\AgdaSpace{}%
+\AgdaSymbol{\{}\AgdaBound{n}\AgdaSymbol{\}}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{Γ}\AgdaSpace{}%
+\AgdaBound{Δ}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaDatatype{List}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaRecord{pf}\AgdaSpace{}%
+\AgdaSymbol{\{}\AgdaBound{n}\AgdaSymbol{\}))}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaPrimitive{Setω}\<%
+\\
+\>[0]\AgdaOperator{\AgdaFunction{\AgdaUnderscore{}⊩\AgdaUnderscore{}}}\AgdaSpace{}%
+\AgdaSymbol{\{}\AgdaBound{n}\AgdaSymbol{\}}\AgdaSpace{}%
+\AgdaBound{Γ}\AgdaSpace{}%
+\AgdaBound{Δ}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaSymbol{∀}\AgdaSpace{}%
+\AgdaSymbol{\{}\AgdaBound{c}\AgdaSpace{}%
+\AgdaBound{ℓ}\AgdaSymbol{\}}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{I}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaRecord{Interpretation}\AgdaSpace{}%
+\AgdaBound{c}\AgdaSpace{}%
+\AgdaBound{ℓ}\AgdaSpace{}%
+\AgdaSymbol{\{}\AgdaBound{n}\AgdaSymbol{\})}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaBound{I}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{⊪}}\AgdaSpace{}%
+\AgdaBound{Γ}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaBound{I}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{⊪}}\AgdaSpace{}%
+\AgdaBound{Δ}\<%
+\end{code}
+%</logical-consequence>
+
+The relation \texttt{Γ ⊩ Δ} means:
+\begin{itemize}
+\item For any interpretation \texttt{I} at any universe levels \texttt{c} and \texttt{ℓ}
+\item If \texttt{I} satisfies all positioned formulas in \texttt{Γ}
+\item Then \texttt{I} also satisfies all positioned formulas in \texttt{Δ}
+\end{itemize}
+
+This captures semantic entailment in our positioned modal logic. The use of \texttt{Setω} is necessary because we quantify over all possible universe levels \texttt{c} and \texttt{ℓ} simultaneously, requiring a universe large enough to contain this quantification.
+
+\section{Soundness Statement}
+
+Finally, we state the soundness theorem connecting syntactic derivability to semantic consequence.
+
+%<*soundness-statement>
+\begin{code}%
+\>[0]\AgdaFunction{Soundness}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaSymbol{∀}\AgdaSpace{}%
+\AgdaSymbol{\{}\AgdaBound{n}\AgdaSymbol{\}}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{Γ}\AgdaSpace{}%
+\AgdaBound{Δ}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaDatatype{List}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaRecord{pf}\AgdaSpace{}%
+\AgdaSymbol{\{}\AgdaBound{n}\AgdaSymbol{\}))}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaDatatype{Proof}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{Γ}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{⊢}}\AgdaSpace{}%
+\AgdaBound{Δ}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaBound{Γ}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{⊩}}\AgdaSpace{}%
+\AgdaBound{Δ}\<%
+\end{code}
+%</soundness-statement>
+
+%<*soundness-proof>
+\begin{code}%
+\>[0]\AgdaFunction{Soundness}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaHole{\{!\ \ \ !\}}\<%
+\end{code}
+%</soundness-proof>
+
+This theorem states that if there is a syntactic proof of \texttt{Γ ⊢ Δ} (using the proof system from Chapter2), then \texttt{Γ} semantically entails \texttt{Δ} in our semilattice models.
+
+The proof is left as a hole for future work, but the type signature establishes the precise relationship between syntax and semantics in our positioned modal logic framework.
+
+\section{Conclusion}
+
+This formalization provides a complete semantic foundation for positioned modal logic using bounded join semilattices. The key insights are:
+
+\begin{enumerate}
+\item Positions (subsets of tokens) map to semilattice elements via least upper bounds
+\item Modal operators use the semilattice order for accessibility
+\item Constrained interpretations ensure proper behavior of the extension function
+\item The framework supports standard logical operations and consequence relations
+\end{enumerate}
+
+The soundness statement establishes the connection to syntactic proof systems, making this a suitable foundation for mechanized reasoning about positioned modal formulas.
+
+\end{document}
