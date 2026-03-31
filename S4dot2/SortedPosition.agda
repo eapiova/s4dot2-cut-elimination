@@ -474,6 +474,29 @@ insertToken-cons : ∀ z zs (z>zs : z >ᴴ zs) → insertToken z zs ≡ pos-cons
 insertToken-cons z zs z>zs = position-inj (insertToken z zs) (pos-cons z zs z>zs)
   (insert-correct z zs)
 
+-- If x ∈Pos s, removing x and then adding it back recovers s.
+insertToken-remove-cancel' : ∀ x s → x ∈Pos s → insertToken x (remove x s) ≡ s
+insertToken-remove-cancel' x ε ()
+insertToken-remove-cancel' x (pos-cons y ys y>ys) x∈s with discreteℕ x y
+... | yes x≡y =
+  position-inj (insertToken x ys) (pos-cons y ys y>ys)
+    (insert-correct x ys
+     ∙ cong (λ z → z LFSet.∷ unsortTokens ys) x≡y
+     ∙ sym (unsort-cons y ys y>ys))
+  where
+    unsort-cons : ∀ y ys y>ys → unsortTokens (pos-cons y ys y>ys) ≡ y LFSet.∷ unsortTokens ys
+    unsort-cons y ys y>ys = cong unsortTokens (sym (insertToken-cons y ys y>ys)) ∙ insert-correct y ys
+... | no x≢y with x∈s
+...   | inl x≡y = ⊥.rec (x≢y x≡y)
+...   | inr x∈ys =
+      sym (insertToken-swap y x (remove x ys))
+      ∙ cong (insertToken y) (insertToken-remove-cancel' x ys x∈ys)
+      ∙ insertToken-cons y ys y>ys
+
+insertToken-remove-cancel : ∀ x s → x ∈Pos s → merge (remove x s) [ x ] ≡ s
+insertToken-remove-cancel x s x∈s =
+  merge-singleton (remove x s) x ∙ insertToken-remove-cancel' x s x∈s
+
 -- Inserting an element that's already present is identity (via position-inj)
 -- When x ∈Pos s, the LFSet representations are equal: x ∷ unsort s ≡ unsort s
 insertToken-∈Pos-id : ∀ x s → x ∈Pos s → insertToken x s ≡ s

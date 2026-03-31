@@ -78,6 +78,10 @@
 \newunicodechar{□}{\ensuremath{\Box}}
 \newunicodechar{♢}{\ensuremath{\Diamond}}
 
+% Greek letters (Agda code snippets)
+\newunicodechar{α}{\ensuremath{\alpha}}
+\newunicodechar{β}{\ensuremath{\beta}}
+
 % Semantic relations
 \newunicodechar{⊧}{\ensuremath{\models}}
 \newunicodechar{⊪}{\ensuremath{\Vdash}}
@@ -118,6 +122,8 @@
 \newcommand{\mform}{\mathcal{MF}}
 \newcommand{\pform}{\mathcal{PF}}
 
+\newcommand{\cubical}{\textsf{Cubical Agda}}
+
 \newtheorem{lemma}{Lemma}[section]
 \newtheorem{theorem}{Theorem}[section]
 \newtheorem{corollary}{Corollary}
@@ -126,7 +132,7 @@
 \theoremstyle{definition}
 \newtheorem{definition}{Definition}[section]
 %\title{An Agda Implementation of the Modal Logic S4.2: Theory and Applications}
-\title{The Modal Logic S4.2 and the \agda~ Proof Assistant: a Deep Embedding approach}
+\title{Metamathematics of the Modal Logic S4.2 in the \agda{} Proof Assistant}
 \author{Riccardo Borsetto and Margherita Zorzi}
 \date{2025}
 
@@ -135,29 +141,103 @@
 \maketitle
 
 \begin{abstract}
-\todo[inline]{Controllare se l'abstract è troppo simile a ICTCS o OVERLAY}
-    We propose an implementation in the \agda~proof assistant of a deductive system for the modal logic $\logic$. $\logic$ extends $\axname{S4}$ with the axiom $\Diamond\Box\phi \rightarrow \Box\Diamond\phi$ and arises as the underlying logic in different fields: it is the logic of four-dimensional Minkowski geometry under the Diodorean interpretation of modality $\Box$; it characterizes forcing over \textsf{ZFC} set theory; and, under suitable interpretations of semantic frames, it is the logic of abelian groups. Last but not least, $\logic$ is considered by epistemologists the ``correct'' logic for knowledge representation. Despite these widespread applications, $\logic$ has been under-investigated (with respect to other modal systems) for several years. This paper is the first step toward a new mechanization of modal logics strongly oriented to constructive mathematics. We introduce $\mathsf{E}_{\logic}$, a sequent calculus for $\logic$ built on previous investigations, where formulae are equipped with a \emph{position}, i.e.\ a set of uninterpreted tokens used to manage modal information. The calculus is designed to enjoy strong proof-theoretic properties, such as a direct syntactic proof of cut elimination, which in turn yields consistency of the system and the subformula property. We implement in \agda~both the system and the proof of the Cut-Elimination Theorem. We also formalize a finite decidable variant of the semilattice semantics and prove a constructive soundness theorem for $\mathsf{E}_{\logic}$, establishing, relying on Segerberg's finite model property, the equivalence between the Hilbert-style axiomatization and the sequent calculus.
+    We propose the implementation in the \agda{}~proof assistant of a new deductive system for the modal logic $\logic$. $\logic$ extends $\axname{S4}$ with the axiom $\Diamond\Box\phi \rightarrow \Box\Diamond\phi$ and arises as the underlying logic in different fields, from mathematics to philosophy.%: it is the logic of four-dimensional Minkowski geometry under the Diodorean interpretation of modality $\Box$; it characterizes forcing over \textsf{ZFC} set theory; and, under suitable interpretations of semantic frames, it is the logic of abelian groups. Last but not least, $\logic$ is considered by epistemologists a good  logic for knowledge representation. 
+ Despite its widespread applications, $\logic$ has been under-investigated (with respect to other modal systems) for several years.  In this paper we focus on the implementation of the metatheory of $\mathsf{E}_{\logic}$, a sequent calculus for $\logic$ built on previous investigations, where formulae are equipped with a \emph{position}, i.e.\ a set of uninterpreted tokens used to manage modal information. The calculus is designed to enjoy strong proof-theoretic properties, such as a direct syntactic proof of cut elimination, which in turn yields consistency of the system and the subformula property. We implement in \cubical{} both the system and the proof of the Cut-Elimination Theorem. Moreover, we propose the implementation of a constructive version of a semantics for $\logic$ based on semilattices %Despite we work on a classical modal logic, our mechanization of $\logic$ is strongly oriented to constructive mathematics. To overcome the intrinsic classical of the relational semantics of $\logic$, we formalize a finite decidable variant of the semilattice semantics (previously introduced for the natural deduction counterpart of our system).
+    and we prove a constructive soundness theorem for $\mathsf{E}_{\logic}$, establishing, relying on Segerberg's finite model property, the (almost) constructive equivalence between the Hilbert-style axiomatization and the sequent calculus.
+    This work represents, in perspective, the initial step toward the (still unknown) intuitionistic version of $\logic$ as well as its purely constructive metamathematics.
 \end{abstract}
 
 
 \section{Introduction}\label{sec:introduction}
 
-Cut elimination is a central result in proof theory: it guarantees that every provable sequent admits a proof that uses only subformulae of the end-sequent. Beyond its intrinsic proof-theoretic interest, cut elimination entails the consistency of the system and the subformula property, which is essential for proof search and decidability investigations. While cut elimination for propositional and first-order classical logic is well established, the situation for modal logics---and in particular for intermediate systems between $\axname{S4}$ and $\axname{S5}$---requires dedicated techniques, due to the interplay between modal operators and the structural management of contexts. In the case of $\logic$, the use of positions (sets of tokens) to track modal information introduces specific challenges: the cut elimination proof must account for token freshness, position substitution, and the interaction between eigenpositions and the Geach axiom.
+\commento{
+\fbox{da qui alla prossima nota possiamo anche togliere, intanto lascio}
+Cut elimination is a central result in proof theory: it guarantees that every provable formula --- a theorem --- admits a proof that uses only subformulae of the theorem itself. In sequent calculi this means that the proof only uses subformulae of the end-sequent in the derivation tree. Beyond its intrinsic proof-theoretic interest, cut elimination entails as corollaries the (syntactic proof of) consistency of the system and the subformula property, which are essential for proof search and decidability investigations. Last but not least, Cut Elimination carries a strong computational meaning, elevating proofs as computational objects.
 
-The growing complexity of these proofs motivates the use of a proof assistant to verify the metatheory. We carry out our formalization in \agda~\cite{AgdaTeam2025:Documentation}, a dependently typed functional programming language that doubles as a proof assistant based on Martin-L\"of type theory. \agda's expressive type system allows us to represent inference rules, derivations, and metatheoretic arguments as typed programs whose type-correctness constitutes a machine-checked proof. Moreover, \agda's pattern matching and termination checker ensure that all inductive arguments are structurally well-founded.
+While cut elimination for propositional and first-order classical logic is well established, the situation for modal logics-requires dedicated techniques, due to the interplay between modal operators and the structural management of contexts.
+On the one side, the transition to first-order to modal logic is quite natural if one exploit the analogy between modal operators and quantifiers; on the other hand, manage modal information is challenging (see the archetypical case of $\axname{S4}$) and many solutions have been introduced ad hoc for specific systems, by loosing modularity and sometimes also the elegant analogy modalities-quantifiers cited above.
+In the last decades, modal proof-theory canalized a renewed interested  and several extensible deductive frameworks with strong properties have been defined and studied (see Section~\ref{sec:related}).
+The flourishing of  deductive systems and the interesting relationships among different approaches have raised new questions not only regarding the most studied systems—the so-called normal extensions of logic $\axname{K}$---but also regarding substructural logics and systems intermediate between $\axname{S4}$ and $\axname{S5}$. Our work investigate this latter family of logics and in particular addresses the system $\logic$ by following a ``geometric'' approach to modal proof theory.
 
-We work in \emph{Cubical \agda}~\cite{VMA2021:CubicalAgda}, an extension that replaces the axiom-based treatment of propositional equality with a computational one grounded in cubical type theory. This choice offers several advantages over standard \agda: function extensionality and the univalence axiom hold definitionally, without postulates; quotient types (higher inductive types) are natively supported; and the \texttt{--safe} flag can be used throughout, ensuring that no unsafe features or unverified postulates compromise the formalization. The \textsf{agda/cubical} library provides well-tested infrastructure for algebraic structures (e.g., semilattices), sorted data structures, and decidable equality, all of which we use extensively.
+\fbox{fin qui, mettendo due righe introduttive direttamente su $\logic$}
+}
+
+\subsection{On the Logic $\logic$}
+$\logic$ is an normal modal system that extends $\axname{S4}$ with the Geach's axiom $\Diamond\Box\phi \rightarrow \Box\Diamond\phi$ that, in terms of the Salqhvist correspondence, forces Church-Rosser property on the relation in the subtended Kripke's models. $\logic$ enjoys a number of interesting and heterogeneous instances.
+
+One of the important ones is in the formalization of temporal reasoning. As investigated by Goldblatt~\cite{Goldblatt1980:Diodorean}, if one interprets modal necessity $\Box$ in the Diodorean sense as ``it is true now and will always be the case that,'' and possibility $\Diamond$ as ``it is true now or will be true at some future time,'' then within the framework of $n$-dimensional Minkowski spacetime (for $n \geq 2$) --- the mathematical setting of special relativity --- the set of valid modal sentences is precisely the logic S4.2. %The temporal ordering in this context, where an event $y$ is in the future of $x$ if a signal can travel from $x$ to $y$ at or below the speed of light, is reflexive and transitive (validating axioms T and 4). Crucially, this ordering is also directed: any two events share a common future event. This directedness property of the causal future is what validates the Geach axiom G, thereby establishing S4.2 as the logic of this relativistic temporal interpretation.
+
+Another fundamental area where S4.2 plays a pivotal role is in the modal logic of set-theoretic forcing, a powerful technique developed by Paul Cohen to prove the independence of the Continuum Hypothesis and other statements from ZFC set theory. Hamkins and L\"owe~\cite{Hamkins2008:ModalForcing}, explored the principles governing truth across forcing extensions when modal operators are interpreted as follows: $\Box\phi$ means ``$\phi$ holds in all forcing extensions,'' and $\Diamond\phi$ means ``$\phi$ holds in some forcing extension.'' They demonstrated that, assuming ZFC is consistent, the ZFC-provable principles of forcing under this interpretation are exactly the theorems of S4.2. %The axioms K, T, and 4 are relatively straightforward to verify. The Geach axiom G is validated by the inherent directedness of the forcing relation: given any two forcing conditions, there exists a common extension (e.g., via product forcing), ensuring that if something is possibly necessary, it is necessarily possible. Their proof ingeniously uses ``button'' and ``switch'' sentences within models of set theory (like L) to simulate finite S4.2 Kripke models, thereby showing that any non-S4.2 theorem can be falsified in some model of ZFC.
+
+The reach of S4.2 extends further into abstract algebra. Berger, Christensen Block, and L\"owe investigated ``The modal logic of abelian groups''~\cite{Berger2023:ModalAbelian}, where worlds are abelian groups and the accessibility relation $A \leq B$ signifies that group $A$ is isomorphic to a subgroup of group $B$. Under this interpretation, $\Box\phi$ means $\phi$ holds in all supergroups (up to isomorphism), and $\Diamond\phi$ means $\phi$ holds in some supergroup. Their main result establishes that the modal logic of the class of all abelian groups under this subgroup relation is precisely S4.2. %The reflexivity and transitivity of the subgroup relation validate axioms T and 4. The directedness property, crucial for axiom G, is satisfied because any two abelian groups $A$ and $B$ can be embedded into their direct product $A \times B$, which serves as a common supergroup. The proof again employs a sophisticated adaptation of the button and switch technique, using properties of prime order elements and divisibility to demonstrate the independence required to show that the logic is no stronger than S4.2.
+
+Despite this wide range of applications, with respect to other systems $\logic$ seems to be less investigated both from a theoretical and a implementation-oriented perspective (we discuss both some ``pen-on-paper'' deductive systems and implementations in~\ref{sec:related}). In particular, since the intuitionistic axiomatization of $\logic$ is not known, its computational aspects remain unexplored. To deepen its metatheoretical properties seems to have a twofold interesting: to advance in the knowledge of $\logic$ proof theory and, through the implementation, try to understand the classical content of the proofs, possibly moving to a purely constructive metatheory.
+
+\subsection{Our Contribution, from theory to implementation}
+In this present paper we do the first step in the direction sketched above by focusing on the implementation and building on our previous investigation in natural deduction. We propose and implement a new deductive system  for $\logic$ called $\eseq$ as a version of \emph{2-sequent}s, originally introduced in~\cite{Masini1992:TwoSequentModalities, Masini1993:TwoSequentIntuitionism} and then developed in~\cite{}. More recently, they are further expanded in~\cite{Martini2023:CutElimination}, where a extensible system able to capture all the logic between $\axname{K}$ and $\axname{S5}$ (but the intermediate systems between $\axname{S4}$ and $\axname{S5}$) is studied. We build in particular on this latter version of 2-sequents and on a natural deduction system counterpart in~\cite{Martini2024:S42NaturalDeduction}.% w.r.t. to the system $\eseq$ can be considered the sequent calculi counterpart.
+The leading idea of this modal  proof-theory style is to decorate formulae with a modal information, called \emph{position}, adding a spatial extension to the proofs system.
+As shown in~\cite{Martini2023:CutElimination}, by interpreting  positions as a \emph{lists} of uninterpreted token (then forcing a notion of positionality and molteplicity), one can characterize different systems by ``tuning '' some constraints on modal rules in a rule systems shared by all the logic in the framework.  According to~\cite{Martini2024:S42NaturalDeduction}, lists for positions are too structured to capture the intermediate system $\logic$, and the correct choice is to move to a notion of \emph{set-positions}, where positions  are simply set of tokens.
+
+The sequent calculus $\eseq$ for $\logic$ we present, study and implement enjoys some strong properties. Our main results is the Cut-Elimination Theorem, fully formalized in the \agda{} proof assistant, that implies as a corollary the (syntactic proof) of the concistency of the system and the Subformula Property. We also present the implementation of a direct proof of the latter foundamental theorem.% Moreover, $\eseq$ is complete w.r.t. the Hilbert-style axiomatization of $\logic$ and it is also s
+
+%Before proceeding, it is appropriate to make a remark. The transition from natural deduction to the sequent calculus (and conversely) is by no means automatic. There are well-known and significant examples in which a logic (or a family of logics) admits a satisfactory formulation in one framework, while the other remains problematic. This is the case, for instance, with Linear Logic, for which no fully satisfactory system of natural deduction has been developed. In the case of $\logic$, the transition is natural; however, it is by no means technically trivial.
+
+%---and in particular for intermediate systems between $\axname{S4}$ and $\axname{S5}$--
+The use of (set-)positions to track modal information always introduces specific challenges, for example the cut elimination proof must account for token freshness, position substitution, and the interaction between eigenpositions and the Geach axiom. As a consequence, the proofs of the theorems are not a simple rework, in particular its embedding in \agda{} require a careful approach.
+
+We list here the main properties of $\eseq$ that guide both the theoretical design and the embedding in $\cubical$:
+
+\begin{itemize}
+    \item
+
+Following the approach of 2-sequents, we do not need an explicit formalization of the accessibility relation as in labelled systems~\cite{Negri:2011, Basin1998:NonClassical}: positions act as a kind of spatial coordinates that provides a ``geometrical'' information to formulae.
+
+\item We fully exploit the formal proof-theoretical analogy between first-order quantifiers and modal connectives: we treat the $\Box$ and $\Diamond$ operators as the universal and the existential quantifiers, also retracing the usual constraints to avoid the capture of variables, here redefined w.r.t.\ tokens.
+\item we have exactly one right and one left rule for each modal connective; only modal operators can change the position of formulae; logical connectives can be applied only to formulae living at the same position.
+
+\end{itemize}
+
+
+Let us now turn to the choices on the implementation side. As already emphasized, the proof theory of modal logic is far from trivial, and the correct management of modal information within proofs makes the proofs themselves highly complex.
+The complexity of the proofs---in particular the proofs of the Cut-Elimination and related results---motivates the use of a proof assistant to verify the metatheory.
+
+
+We adopt a deep embedding approach, whereby the syntax and inference rules of $\eseq$ are explicitly represented within the proof assistant. This methodology enables us to formally establish theorems about $\eseq$ and to reason precisely about the logical content of proofs concerning its metatheory.
+
+
+
+
+
+\subsection{Why Cubical \agda?}
+We carry out our formalization in \emph{Cubical \agda}~\cite{VMA2021:CubicalAgda,AgdaTeam2025:Documentation}, an extension of \agda{} that replaces axiom-based propositional equality with a computational one grounded in cubical type theory.
+This choice offers concrete advantages: function extensionality and univalence hold definitionally, quotient types (higher inductive types) are natively supported, and the \texttt{--safe} flag can be enforced throughout, ensuring no postulates compromise the formalization.
+The \textsf{agda/cubical} library provides infrastructure for algebraic structures (e.g., semilattices), sorted data structures, and decidable equality, all of which we use extensively (see Section~\ref{sec:finite-semantics}).
+
+Compared to tactic-based proof assistants such as Coq, Lean, or Isabelle, \agda{}'s functional, proof-term--oriented approach and Unicode syntax keep formalized definitions close to their mathematical presentations---particularly advantageous for a system in which the manipulation of positions plays a central role.
+Moreover, \agda{}'s constructive foundation naturally complements the proof-theoretic orientation of this work and supports future extensions toward an intuitionistic version of $\logic$ (Section~\ref{sec:conclusions_future}).
 
 \textbf{Outline of the paper.}
-Section~\ref{sec:calculus} introduces the sequent calculus $\calculus$, including positions, position-formulae, and the inference rules.
-Section~\ref{sec:cutelim} presents the cut elimination theorem, with its proof and \agda~implementation.
-Section~\ref{sec:finite-semantics} describes the finite semilattice semantics and the constructive soundness theorem.
+Section~\ref{sec:calculus} introduces the sequent calculus $\calculus$, including positions, position-formulae, the inference rules, and weak completeness w.r.t.\ the Hilbert-style axiomatization.
+Section~\ref{sec:cutelim} presents the cut elimination theorem, with its proof and \agda{} implementation.
+Section~\ref{sec:finite-semantics} describes the finite semilattice semantics, the constructive soundness theorem, and the Hilbert--sequent equivalence.
 Section~\ref{sec:related} surveys related work.
 Section~\ref{sec:conclusions_future} discusses conclusions and future directions.
 
+\medskip
+
+\textbf{Guide to the reading.} The reader can access the complete \agda{} code through the symbol ``\agdalink{}''. When particularly meaningful, we also include and comment on excerpts of the code along the paper.
+
+
+
+%%%%%%%%%%%%%%SISTEMA, REGOLE, WEAK COMPLETENESS%%%%%%%%%%%%%%%%%
 \section{The sequent calculus \texorpdfstring{$\calculus$}{E\_S4.2}}\label{sec:calculus}
 
-As mentioned in the introduction, we will label formulae with positions, sets of uninterpreted tokens.
+In this section we present the syntax, the deductive system and the Weak Completeness Theorem w.r.t.\ a standard Hilbert-style axiomatization of $\logic$.
+
+
+
+We start from the ground notion of token, position and position-formula.
+As mentioned in the introduction, we will label formulae with sets of uninterpreted tokens.
 
 
 \begin{definition}[Tokens \agdalink{S4dot2.SortedPosition.html\#Token}]
@@ -169,6 +249,9 @@ with $s,t$ we denote $s\cup t$ and with $s,x$ we denote $s\cup\{x\}$.
 $s,\varnothing=\varnothing, s= s$.
 \end{definition}
 
+
+
+
 \begin{definition}[Positions \agdalink{S4dot2.SortedPosition.html\#Position}]
 We call \emph{set-position} (or, briefly, \emph{position}) any finite and possibly empty set of tokens. Let $\mathcal{P}$ be the set of positions, ranged by metavariables $s,t,u$ possibly indexed.
 %We begin by defining the syntax of $\mathsf{E}_{{\textsf{S4.2}}}$.   %This includes the underlying logical language, the notions of tokens and positions, and finally, position-formulae and position-sequents themselves.
@@ -176,7 +259,7 @@ We call \emph{set-position} (or, briefly, \emph{position}) any finite and possib
 
 
 The language $\mathcal{L}$ consists of a countably infinite set of propositional symbols $p_0, p_1, \dots$, propositional connectives $\wedge, \vee, \rightarrow, \neg, \bot$,  modal operators $\Box, \Diamond$ and  auxiliary symbols $(, )$.
-All propositional connectives and both modal operators are taken as primitive, rather than being inter-defined, in order to give each its own introduction and elimination rules in the sequent calculus and to simplify the \agda~formalization, where each connective corresponds to a distinct constructor of the inductive type of formulae.
+All propositional connectives and both modal operators are taken as primitive, rather than being inter-defined, in order to give each its own introduction and elimination rules in the sequent calculus and to simplify the \agda{}~formalization, where each connective corresponds to a distinct constructor of the inductive type of formulae.
 
 
 
@@ -196,7 +279,7 @@ A \textit{position-formula} (briefly \textit{p-formula}) is an expression of the
         $A$ is a modal formula and $s \in \mathcal{P}$. $\pform$ is the set of position-formulae.
 \end{definition}
 
-The use of \emph{sets} of tokens for positions is a key feature of $\calculus$, distinguishing it from earlier extended sequent calculi that typically employed \emph{sequences} of tokens~\cite{Martini2023:CutElimination}. This choice, introduced in~\cite{Martini2024:S42NaturalDeduction} for natural deduction, aligns naturally with the semilattice semantics of $\logic$: positions represent finite collections of modal constraints without an artificial ordering, and the union operation ($s,t$ or $s,x$) reflects the join in a semilattice with minimum. This is crucial for capturing the confluence (weak directedness) property that characterizes $\logic$ frames.
+The use of \emph{sets} of tokens for positions is a key feature of $\calculus$, distinguishing it from earlier extended sequent calculi that typically employed \emph{sequences} of tokens~\cite{Martini2023:CutElimination}. This choice, introduced in~\cite{Martini2024:S42NaturalDeduction} for natural deduction, aligns naturally with the semilattice semantics of $\logic$: positions represent finite collections of modal constraints without an artificial ordering and multiplicity, and the union operation ($s,t$ or $s,x$) reflects the join in a semilattice with minimum. This is crucial for capturing the confluence (weak directedness) property that characterizes $\logic$ frames.
 
 %We need sometimes to replace tokens inside positions.  Given a token $x$ and positions $s$ and $t$, the \emph{substitution} $s[x/t]$ is defined as $
 %s[x/t]=(s\setminus \{x\}) \cup t \quad \mbox{if\ } x \in s$ and 
@@ -312,7 +395,7 @@ In first-order sequent calculi, the freshness condition does not affect which en
 % it is eigenvariable, and it never occurs as a bound variable.
 We extend the idea to position sequents (following~\cite{Martini2023:CutElimination}) in the following section, by stating and proving the Token-Position Substitution Lemma~\ref{lem:pos-subst-validity} (which subsumes token renaming as a special case).
 
-%We express this in \agda~by means of the following code
+%We express this in \agda{}~by means of the following code
 %\ExecuteMetaData[Chapter2.tex]{fresh}
 
  
@@ -451,24 +534,23 @@ We show the rules of $\eseq$. %and the corresponding $Agda$ implementation. See 
 with the constraints:  $x \notin s$ and $x$ fresh for $\Gamma, \Delta$ for $\vdash \Box$  and $\Diamond \vdash$.
 
 
-%We show here the \agda~implementation of the modal fragment. See Appendix \ref{appendix:rulesagda} for the complete implementation of the system.
-%\ExecuteMetaData[Chapter2.tex]{proof}
+We show here the \agda{} implementation of the modal fragment.
 
-%\ExecuteMetaData[Chapter2.tex]{proofprop}
-%\ExecuteMetaData[Chapter2.tex]{proof}
+\ExecuteMetaData[Chapter2.tex]{modalRules}
 
 \newcommand{\hilbertlogic}[1]{\mathsf{H}_{#1}}
 %\section{On weak completeness and Semantics}\label{sec:completeness}
 
 
 \subsection{Weak Completeness}
-The system $\eseq$ proves, at any position, all the theorems of the Hilbert-style presentation of $\logic$ (see also~\cite{Martini2024:S42NaturalDeduction}). The derivations below are given at the empty position $\varnothing$; derivability at an arbitrary position $s$ then follows by weakening (rule $W\vdash$ / $\vdash W$) applied to the position structure.
+The system $\eseq$ proves, at any position, all the theorems of the Hilbert-style presentation of $\logic$ (see also~\cite{Martini2024:S42NaturalDeduction}). The derivations below are given at the empty position $\varnothing$; derivability at an arbitrary position $s$ then follows by weakening (rule $W\vdash$ or $\vdash W$) applied to the position structure.
 
 
 
-%\section{Weak Completeness: \agda~derivations of S4.2 Axioms}\label{appendix:axioms}
+%\section{Weak Completeness: \agda{}~derivations of S4.2 Axioms}\label{appendix:axioms}
 
 Given a Hilbert-style axiomatization $\hilbertlogic{\logic}$ of $\logic$, one achieves weak completeness by showing that all the theorems derivable in $\hilbertlogic{\logic}$ are also theorems of $\calculus$ and that the derivations are closed under necessitation and modus ponens rules.
+The following is the key lemma to prove the main theorem:
 
 \begin{lemma}[\agdalink{S4dot2.Equivalence.HilbertCompleteness.html\#derive-P1}]
 \begin{description}
@@ -587,26 +669,30 @@ Notice the freshness requirement on $y$ for the first $\vdash \Box$, and the fre
 \]
   where $y$ is fresh for $\vdash \Box$, and $x$ is fresh for $\Diamond \vdash$. Notice the role the interpretation of positions as a set plays in the derivation, allowing to manipulate tokens independently from the position in the sequence. Moving to a more structured notion of position, we cannot derive the Geach axiom~\cite{Martini2023:CutElimination}. 
 
-For the characteristic axiom, we also show the \agda~code:
-\todo[inline]{Semplificare e motivare il codice Agda degli assiomi}
-\begingroup
-\scriptsize
-\sloppy
+For the characteristic axiom, we also show here the \agda{}~code:
 \ExecuteMetaData[PaperCode.tex]{geachAxiom}
-\endgroup
 
+\noindent
+The proof term mirrors the pen-and-paper derivation.
+A private module \texttt{G}, parameterized by the formula $A$, pre-computes the positions used in the proof: $\alpha = \varnothing$, $\beta = \{0\}$, $\gamma = \{1\}$, $\delta = \{0,1\}$.
+The blue identifiers are helper lemmas that discharge the side conditions of the modal rules:
+\texttt{fresh-$\alpha$-0} and \texttt{fresh-$\alpha$-1} witness that tokens $0$ and $1$ do not occur in the empty position~$\alpha$;
+\texttt{TokenFresh-[]} witnesses freshness with respect to an empty context;
+\texttt{fresh-$\Delta$-$\Diamond\vdash$} and \texttt{fresh-$\Gamma$-$\vdash\Box$} collect the freshness evidence required by the $\Diamond\vdash$ and $\vdash\Box$ rules, respectively.
+Finally, \texttt{ax-subst'} applies a position-substitution lemma to turn an instance of \textsc{Ax} at position~$\delta$ into one at the position required by the surrounding context.
 %\subsection{Modus Ponens}
 \bigskip
 
-\noindent 
+\noindent
 
-Closure under Necessitation and Modus Ponens is also clearly derivable. We show the \agda~code here.
-\begingroup
-\scriptsize
-\sloppy
+Closure under Necessitation and Modus Ponens is also clearly derivable. We directly show the \agda{}~code:
 \ExecuteMetaData[PaperCode.tex]{NEC}
+\noindent
+The proof of Necessitation applies the $\vdash\Box$ rule to the hypothesis \texttt{pA}.
+A private module \texttt{N}, parameterized by a formula $A$ and a proof \texttt{pA} of $\vdash A^{\varnothing}$, computes a fresh eigentoken \texttt{xN} as the successor of the maximum token occurring in \texttt{pA} (via \texttt{maxEigenposToken}).
+The key step is \texttt{liftedN}, which uses \texttt{lift-proof} to transport the derivation \texttt{pA} from position $\varnothing$ to the eigenposition $\{$\texttt{xN}$\}$ required by the premise of $\vdash\Box$; the proof \texttt{ncN} certifies that the eigentoken does not interfere with any eigenposition already used in \texttt{pA}.
+Modus Ponens is a direct application of the Cut rule:
 \ExecuteMetaData[PaperCode.tex]{MP}
-\endgroup
 
 \end{proof}
 
@@ -621,10 +707,12 @@ For each position $s$, if $\vdash_{\mathcal{H}} A$ then $\vdash_{\eseq} A^s$.
 
 %\section{Some proof-theoretical results}
 %\subsection{Preliminaries}
-\section{Cut Elimination Theorem for \texorpdfstring{$\eseq$}{E-S4.2}: theory and implementation}\label{sec:cutelim}
+\section{Cut-Elimination for \texorpdfstring{$\eseq$}{E-S4.2}}\label{sec:cutelim}
 We propose now our main proof-theoretical result, the Cut Elimination Theorem for $\calculus$.
 
 We start with a crucial auxiliary lemma. In position-based sequent calculi token and position handling plays a crucial technical role.  We extend some results from~\cite{Martini2023:CutElimination} that allow one to soundly replace tokens with positions inside proofs. As a special case, an eigen-token $x$ in a proof $\Pi$ can be consistently renamed to a fresh token $y$ by substituting $x$ with the singleton position $\{y\}$, resulting in a valid proof $\Pi'$.
+
+%\subsection{Substitution Lemmata}\label{ssec:subst-lemmata}
 
 \commento{
 \begin{lemma}[Token Renaming \agdalink{S4dot2.CutElimination.ProofSubst.html\#renameEigenpos-♢⊢-premise-gen}]\label{lem:token-renaming}
@@ -744,7 +832,7 @@ In all cases, $R$ applied to the transformed premise(s) (valid by IH) yields the
 Token renaming $[x \mapsto y]$, where a single token $x$ is replaced by another token $y$, is a special case of the above lemma with $t = \{y\}$. In the Agda formalization, both operations are handled by the single function \texttt{substTokenToPosProof}.
 \end{remark}
 
-\bigskip
+%\subsection{Degree, Rank, and Notation}\label{ssec:degree-rank}
 
 We move now to the main result of the paper, which is also the core of the implementation in the \agda\ proof assistant we are proposing.
 
@@ -765,11 +853,8 @@ The degree $dg(A)$ of a modal formula $A$ is defined as:
 The degree of a p-formula $\pf{A}{s}$ is $dg(\pf{A}{s}) = dg(A)$.
 
 \begin{definition}[Rank and height of a proof \agdalink{S4dot2.CutElimination.Base.html\#δ}]\label{def:rank}
-
 \begin{itemize}
-    \item 
-
-The rank $\delta[\Pi]$ of a proof $\Pi$ is defined as:
+    \item The rank $\delta[\Pi]$ of a proof $\Pi$ is defined as:
 \[
 \delta[\Pi] =
 \begin{cases}
@@ -777,22 +862,21 @@ The rank $\delta[\Pi]$ of a proof $\Pi$ is defined as:
     \sup \{ dg(\pf{A}{s}) + 1 \mid \pf{A}{s} \text{ is a cut formula in } \Pi \} & \text{otherwise}
 \end{cases}
 \]
-\item The height of a proof is inductively defined in the usual way. We  use $h(\Pi)$ to denote the height of the proof tree $\Pi$.
+    \item The height of a proof is inductively defined in the usual way. We use $h(\Pi)$ to denote the height of the proof tree $\Pi$.
 \end{itemize}
 \end{definition}
 
- 
-\bigskip
+\paragraph{Notation.}
+Let $\Gamma$ be a sequence of formulae. In the following we denote by $\cana{\Gamma}$ the sequence obtained by removing all occurrences of $\pf{A}{s}$ in $\Gamma$. When writing $\Gamma,\cana{\Gamma'}$ we actually mean $\Gamma,(\cana{\Gamma'})$.
 
-Let $\Gamma$ be a sequence of formulae. In the following we denote by $\cana{\Gamma}$ the sequence obtained by removing all occurrences of $\pf{A}{s}$ in $\Gamma$. When writing $\Gamma,\cana{\Gamma'}$ we actually mean $\Gamma,(\cana{\Gamma'})$. %The degree $\delta$ of a p-formula $\pf{A}{s}$ as well as the definition of subformula are inductively defined as usual.
+%\subsection{The Mix Lemma}\label{ssec:mix}
 
 We state and prove the Mix Lemma.
 
 \begin{lemma}[Mix Lemma \agdalink{S4dot2.CutElimination.MixNew.html\#mix}]\label{lem:mix}
 Let $n \in \mathbb{N}$ and let $\pf{A}{s}$ be a p-formula of degree $n$.
 Let $\Pi$ be a proof of an e-sequent $\seq{\Gamma}{\Delta}$ and
-$\Pi'$ be a proof of an e-sequent $\seq{\Gamma'}{\Delta'}$,
-where $\pf{A}{s}$ is a formula in $\Delta$ and $\pf{A}{s}$ is a formula in $\Gamma'$.
+$\Pi'$ be a proof of an e-sequent $\seq{\Gamma'}{\Delta'}$.
 Assume that the ranks of the proofs satisfy $\delta[\Pi], \delta[\Pi'] \le n$.
 Then, one can obtain in an effective way from $\Pi$ and $\Pi'$ a proof
 $\;\;\Pi_{mix} = \text{Mix}(\Pi, \Pi', \pf{A}{s})\;\;$
@@ -800,15 +884,9 @@ of the e-sequent $\seq{\Gamma, \cana{\Gamma'}}{\cana{\Delta}, \Delta'}$
 satisfying the property $\delta[\Pi_{mix}] \le n$.
 \end{lemma}
 
-%\begin{proof}
-%The proof proceeds by structural induction by cases on the last rule. 
-%\end{proof}
-
 \begin{proof}
-The proof proceeds by well-founded induction on the pair $\langle n,\; h(\Pi) + h(\Pi') \rangle$ with respect to the lexicographic ordering on $\mathbb{N} \times \mathbb{N}$, where $n = dg(A)$. Let $r$ be the last rule of $\Pi$ (deriving $\seq{\Gamma}{\Delta}$ where $\pf{A}{s} \in \Delta$) and $r'$ be the last rule of $\Pi'$ (deriving $\seq{\Gamma'}{\Delta'}$ where $\pf{A}{s} \in \Gamma'$). We sketch the main cases.
+The proof proceeds by well-founded induction on the pair $\langle n,\; h(\Pi) + h(\Pi') \rangle$ with respect to the lexicographic ordering on $\mathbb{N} \times \mathbb{N}$, where $n = dg(A)$. Let $r$ be the last rule of $\Pi$ (deriving $\seq{\Gamma}{\Delta}$) and $r'$ be the last rule of $\Pi'$ (deriving $\seq{\Gamma'}{\Delta'}$). We sketch the main cases.
 \begin{enumerate}
-
-{
     \item \textbf{$r$ is an Axiom ($Ax$).}
         If $\seq{\Gamma}{\Delta}$ is $\seq{\pf{A}{s}}{\pf{A}{s}}$, then $\text{Mix}(\Pi, \Pi', \pf{A}{s})$ (a proof of $\seq{\pf{A}{s}, \cana{\Gamma'}}{\Delta'}$) is obtained from $\Pi'$ by structural rules.
         If $\seq{\Gamma}{\Delta}$ is $\seq{\pf{C}{u}}{\pf{C}{u}}$ where $\pf{C}{u} \neq \pf{A}{s}$, then $\text{Mix}(\Pi, \Pi', \pf{A}{s})$ (a proof of $\seq{\pf{C}{u}, \cana{\Gamma'}}{\pf{C}{u}, \Delta'}$) is obtained from $\Pi$ by structural rules.
@@ -819,7 +897,7 @@ The proof proceeds by well-founded induction on the pair $\langle n,\; h(\Pi) + 
         Let $\Pi_{sub}$ be the premise proof(s) for $r$. Apply the induction hypothesis to each pair $\langle \Pi_{sub}, \Pi' \rangle$ to get proofs $\text{Mix}(\Pi_{sub}, \Pi', \pf{A}{s})$. Then apply rule $r$ to these results, followed by structural rules if necessary, to obtain the proof of $\seq{\Gamma, \cana{\Gamma'}}{\cana{\Delta}, \Delta'}$.
 
     \item \textbf{$r'$ is a structural rule, or a logical rule where $\pf{A}{s}$ is not the principal formula introduced in $\Gamma'$.} Symmetric to case 3.
-}
+
     \item \textbf{Principal Case: $r$ introduces $\pf{A}{s}$ as the principal formula in $\Delta$, and $r'$ introduces $\pf{A}{s}$ as the principal formula in $\Gamma'$.}
         \begin{itemize}
             \item \textit{Propositional Connectives:} Handled similarly to classical logic cut elimination. The cut on $\pf{A}{s}$ is replaced by one or more cuts on direct subformulae of $\pf{A}{s}$, which have a degree less than $n$.
@@ -839,19 +917,24 @@ The proof proceeds by well-founded induction on the pair $\langle n,\; h(\Pi) + 
 In all cases, the resulting proof $\Pi_{mix}$ has $\delta[\Pi_{mix}] \le n$. For principal cases, new cuts are on formulae of degree strictly less than $n$. For non-principal cases, the IH ensures the rank condition is maintained.
 The substitution lemmata, crucial for the Mix Lemma proof, are fully formalized in the \agda\ development.
 \end{proof}
+\subsection{The Cut Elimination Theorem: pen-on-paper proof and implementation}\label{ssec:cut-elim}
+
 The Mix Lemma~\ref{lem:mix} shows that a single cut application can be eliminated or replaced by cuts on formulae of smaller degree. Using this result, we can prove the Cut Elimination theorem for $\mathsf{E}_{{\textsf{S4.2}}}$.
 
-%<*cut-elimination-explanation>
-%\subsection{The Cut Elimination Theorem in \agda}
+
+We show the type of the main function:
+
+\ExecuteMetaData[EPTCS/CutElimCode.tex]{cutElim}
+
+\noindent
+The function \texttt{CutElimination} takes a proof $\Pi$ and returns a pair $(\Pi^*, p)$ where $\Pi^*$ proves the same sequent and $p$ witnesses $\delta[\Pi^*] = 0$.
+Internally, \texttt{cutElim} performs well-founded recursion on the rank bound $n \geq \delta[\Pi]$, with an accessibility witness \texttt{Acc} ensuring termination.
 
 \begin{theorem}[Cut elimination \agdalink{S4dot2.CutElimination.CutElimination.html\#CutElimination}]\label{thm:cut-elim} % Retain original label
 If $\;\Pi$ is a proof of $\seq{\Gamma}{\Delta}$, then there
 exists a cut-free proof $\;\Pi^*$
 of $\seq{\Gamma}{\Delta}$.
 \end{theorem}
-
-   
-\bigskip
 
 \begin{proof}
 
@@ -901,18 +984,27 @@ Thus, any provable sequent has a cut-free proof.
 
 \end{proof}
 
+We also display the type signature of the Mix Lemma, which constitutes the core of the elimination procedure:
 
+\ExecuteMetaData[EPTCS/CutElimCode.tex]{mixType}
 
+\noindent
+The \texttt{mix} function takes two proofs $\Pi$ and $\Pi'$ whose ranks are bounded by the degree $n$ of the cut formula $A^{s}$, and returns a proof $\Pi_0$ of the combined sequent---with all occurrences of $A^{s}$ removed from the left premise's succedent and the right premise's antecedent---satisfying $\delta[\Pi_0] \leq n$.
+
+\subsubsection{The Cut Elimination Algorithm: a careful discussion}\label{ssec:implementation}
+
+%\paragraph{Overview.}
 Our cut elimination algorithm follows Gentzen's classical approach, adapted for the complexities introduced by modal operators and positional annotations. The algorithm operates through a rank-based elimination strategy, where cuts are systematically removed in order to decrease complexity as measured by the $\delta$ function.
 
+%\paragraph{Components.}
 The implementation is based on some interdependent components. The main \texttt{CutElimination} function performs rank-based induction, recursively eliminating cuts from subproofs before applying the mix lemma (\texttt{mix}) to combine the results. The \texttt{mix} function requires extensive case analysis on both the structure of the input proofs and the logical form of the cut formula. Supporting functions like \texttt{cutFreeProof}, \texttt{removeAll} and \texttt{structural} handle the structural manipulations needed to maintain proper sequent form throughout the elimination process. A key ingredient for managing the proof engineering challenge of the mix lemma is a verified subset solver\agdalink{S4dot2.Solver.Subset.html}: a domain-specific language for list subset expressions equipped with a normal-form decision procedure whose soundness is formally proven. Each invocation of the solver replaces what would otherwise be a manual chain of subset-inclusion lemmas, making the large case analysis of the mix function feasible in practice.
 
-Termination is guaranteed by the $\delta$ ranking function design. Every proof containing cuts has a positive rank, determined by the supremum of the degrees of its cut formulae, while cut-free proofs have rank zero. The Mix Lemma ensures that each elimination step produces a proof whose rank does not exceed that of its inputs.
+%\paragraph{Termination.}
+Termination of \texttt{mix} is proved via well-founded induction on the lexicographic pair $\langle dg(A), h(\Pi) + h(\Pi') \rangle$: principal cases strictly decrease the degree, while non-principal cases keep the degree fixed and strictly decrease the height sum.
+Termination of \texttt{CutElimination} combines well-founded recursion on a rank bound $n \ge \delta[\Pi]$ with structural recursion on the proof $\Pi$: non-Cut rules recurse on structurally smaller premises at the same bound, while the Cut case first eliminates cuts from the premises, applies the Mix Lemma to obtain a proof $\Pi_0$ with $\delta[\Pi_0] \le dg(A) < n$, and then recurses at the strictly smaller bound $dg(A)$.
+Cut-free proofs have rank zero, and every proof containing cuts has positive rank (determined by $\sup\{dg(\pf{A}{s})+1 \mid \pf{A}{s} \text{ is a cut formula}\}$), so the process terminates.
 
-
-
-
-
+%\paragraph{Auxiliary procedures.}
 We describe the structure of the code. The auxiliary procedures supporting the main algorithm deserve some explanations. Context normalization through \texttt{removeAll} addresses a technical issue that arises during the mix operation: when combining proofs, redundant occurrences of the cut formula can appear in intermediate contexts, requiring careful removal to maintain the proper logical structure. This function transforms contexts containing explicit cut formulae into properly filtered contexts that respect the intended semantics of the elimination process.
 
 Structural restoration via \texttt{structural} \agdalink{S4dot2.System.html\#structural} performs the inverse operation, adding back formulae that were temporarily filtered out during elimination. This restoration uses structural weakening operations to ensure that the final cut-free proof maintains the same sequent structure as the original proof containing cuts. The delicate balance between removal and restoration is essential for preserving both provability and the logical relationships encoded in the original proof.
@@ -923,10 +1015,10 @@ It is worth remarking that the function \texttt{structural}, whose type is
 \]
 subsumes all six structural rules ($W\vdash$, $\vdash W$, $C\vdash$, $\vdash C$, $E\vdash$, $\vdash E$) into a single derived combinator based on subset inclusion between contexts. This significantly simplifies the formalization, since a single application of \texttt{structural} replaces what would otherwise require multiple explicit appeals to weakening, contraction, and exchange.
 
-The correctness of this process rests on several key lemmata: \textsf{cutFreeProof} expresses that a cut-free proof is a proof of the statement, \textsf{cutFreeProof-isCutFree} states that a cut-free proof has rank zero, and the fact that no Cut rule can have zero rank (handled by structural pattern matching on the proof) prevents infinite recursion while maintaining the rank bounds essential for termination.
+%\paragraph{Correctness invariants.}
+The correctness of this process rests on several key lemmata: \textsf{cutFreeProof} extracts the transformed proof from the output of \textsf{CutElimination}, \textsf{cutFreeProof-isCutFree} proves that it has rank zero, and the fact that no Cut rule can have zero rank (handled by structural pattern matching on the proof) prevents infinite recursion while maintaining the rank bounds essential for termination.
 
-
-\bigskip
+\subsubsection{Corollaries of the Cut-Elimination}\label{ssec:corollaries}
 
 From the Cut-Elimination Theorem the Subformula Property follows as a corollary.
 
@@ -939,6 +1031,16 @@ Moreover, we also obtain a purely syntactic proof of consistency of the system:
 \begin{corollary}[Consistency \agdalink{S4dot2.CutElimination.Consistency.html\#Consistency}]
 The empty sequent $\seq{}{}$ is not provable in $\mathsf{E}_{{\textsf{S4.2}}}$.
 \end{corollary}
+
+We conclude the section by showing the \agda{} type of the Subformula Property:
+
+\ExecuteMetaData[EPTCS/NAMOR/Final/CutElimination/SubformulaProperty.tex]{subformulaProp}
+
+\noindent
+The function takes a cut-free proof $\Pi$ (witnessed by \texttt{isCutFree}), a p-formula \texttt{pf} occurring in $\Pi$ (via \texttt{allFormulasInProof}), and returns a proof that \texttt{pf} is a subformula of some formula in the end-sequent.
+The base case (\textsc{Ax}) is immediate; for each inference rule, the property is propagated from the premises by the induction hypothesis.
+Although the Subformula Property follows as a corollary of the Cut-Elimination Theorem (since cut-free proofs satisfy the property trivially), our formalization also includes a \emph{direct} proof (\texttt{SubformulaProperty'}\agdalink{S4dot2.CutElimination.SubformulaProperty.html\#SubformulaProperty\%27}) that establishes the result by induction on the derivation without appealing to cut elimination.
+The Cut case is discharged by contradiction: a proof with $\delta = 0$ cannot end in a Cut rule.
 
 
 \commento{%--- old Discussion subsection (superseded by Section~\ref{sec:finite-semantics})
@@ -960,10 +1062,10 @@ But there is another, related, motivation behind the choice to postpone the impl
 
 As discussed in the following section, our current interest is to define an intuitionistic version of $\logic$. From the perspective of the deductive system, it is quite easy to define an intuitionistic calculus (by removing the reductio ad absurdum rule from natural deduction or by restricting sequents to have a single succedent formula). On the other hand, defining a \emph{purely constructive semantics} is not obvious at all. It is well-known that Kripke structures are intrinsically classical, and a first idea could be to replace them with Beth structures, which move some steps toward constructivism. The landscape is therefore a bit more complicated in the presence of spatial coordinates: how can we soundly interpret positions? The direction is to work on semilattice semantics and replace set-theoretical definitions with constructive ones.
 \commento{
-It is well-known the $\logic$ is characterized by direct pre-orders, but it is also sound and complete w.r.t. the class of semilattices with minimum (\cite{Martini2024:S42NaturalDeduction}, Theorem 21).
+It is well-known the $\logic$ is characterized by direct pre-orders, but it is also sound and complete w.r.t.\ the class of semilattices with minimum (\cite{Martini2024:S42NaturalDeduction}, Theorem 21).
 Therefore, the semantics for $\calculus$ is given in term of structures called \emph{semilattice-models}. This choice  is motivated by a non-trivial problem when one tries to interpret positions in terms of direct pre-orders. Once one decides which point in the Kripke model could be uniquely associated with a set of tokens $\{x_1,\ldots,x_n\}$, a natural  choice would be to take one of the upper bounds of the worlds associated with each token. Unfortunately, this choice would not be unique, and in a direct pre-order the supremum of a finite set of elements might not exist. Thanks to some results by Goldblatt and Shehtmann~\cite{Goldblatt1980:Diodorean, Shehtman1983:ModalDomains}, which imply that $\logic$ is also characterized by the class of semilattices with minimum, the problem disappears. Given an arbitrary semilattice with minimum $\mathsf{m}$ $\langle W,\leq, \mathsf{m}\rangle$, we denote as $\bigsqcup$ the least upper bound (lub)  operator, extended in a natural way to finite subsets of $W$. Then a semilattice model is a quadruple $\mathcal{U}=\langle W,\leq, \mathsf{m}, V\rangle$ where $V: W\rightarrow 2^{At}$. An interpretation is a pair $(\mathcal{U},\rho)$, where the interpretation function $\rho$ maps tokens to worlds in the Kripke's structure as follows: $\rho(\varnothing)=\mathsf{m}$ and  given a non-empty position $s=\{x_1,\ldots x_k\}$, $\rho(s)=\bigsqcup\{\rho(x_1)\ldots\rho(x_k)\}$. 
 
-\commento{The satisfability relation $\Vvdash $ for position-formulae on an interpretation is  defined as $\rho\Vvdash A^s \Leftrightarrow \mathcal{U},\rho_\mathcal{U}(s)\models A$ and  extended in the trivial way to sequences $\Gamma$ of p-formulae. Standard notion of logical consequence can be easily adapted from \cite{Martini2024:S42NaturalDeduction}}
+\commento{The satisfability relation $\Vvdash $ for position-formulae on an interpretation is  defined as $\rho\Vvdash A^s \Leftrightarrow \mathcal{U},\rho_\mathcal{U}(s)\models A$ and  extended in the trivial way to sequences $\Gamma$ of p-formulae. Standard notion of logical consequence can be easily adapted from~\cite{Martini2024:S42NaturalDeduction}}
 % The, \textit{logical consequence} is defined as $
 %\Gamma \Vvdash \pf{A}{ s} \Leftrightarrow
 %\forall \mathfrak{A}.\forall  \rho_\A. ( \mathfrak{A},  \rho_\A\Vvdash \Gamma \Rightarrow  \mathfrak{A}, \rho_\A\Vvdash  \pf{A}{ s}).
@@ -1081,12 +1183,32 @@ Building on the previous procedures, as a work in progress we are completing the
 
 
 \section{Finite Semantics and Soundness}\label{sec:finite-semantics}
+To date, we focused on syntactic aspects and structural properties of the sequent calculus $\eseq$, in particular on weak completeness with respect to the Hilbert-style axiomatization, and on the analyticity of the system by proving and implementing  the proof of the Cut-Elimination Theorem and its consequences.
 
-As discussed above, the semantics of $\logic$ is naturally given in terms of semilattice-models~\cite[Theorem~21]{Martini2024:S42NaturalDeduction}. Given a semilattice with minimum $\langle W, \leq, \mathsf{m} \rangle$ and a valuation $V : W \to 2^{At}$, an interpretation $\rho$ maps tokens to worlds and extends to positions via $\rho(\varepsilon) = \mathsf{m}$ and $\rho(s \cup \{x\}) = \rho(x) \sqcup \rho(s)$. In this section, we describe the \agda~formalization of a \emph{finite decidable} variant of this semantics, together with a constructive soundness theorem for $\eseq$ and the resulting equivalence with the Hilbert axiomatization $\hilbertlogic{\logic}$.
+In this section we address a constructive and decidable version of a suitable semantics for $\logic$ equipped with  position-style deductive system.
 
-The move to finite models is motivated by two considerations. First, restricting to a finite carrier $\mathrm{Fin}(n)$ makes the order relation and the evaluation function decidable, allowing the entire soundness proof to be carried out constructively (under \texttt{--safe}, with no postulates). Second, it avoids the universe-level complications that arise in a fully general semilattice formalization, where satisfaction must quantify over worlds of arbitrary type.
+It is known from the literature that $\logic$ is semantically characterized by directed pre-orders, but it is also sound and complete with respect to the class of \emph{semilattices with minimum}, as shown in~\cite[Theorem~21]{Martini2024:S42NaturalDeduction}. This latter semantics, due to results by Goldblatt and Shehtmann~\cite{Goldblatt1980:Diodorean, Shehtman1983:ModalDomains} and called \emph{semilattice-models}, has been introduced to naturally interpret the notion of (set) position in the context of natural deduction.
+%The semantics of $\logic$ in its natural deduction formulation is given in terms of semilattice-models~\cite[Theorem~21]{Martini2024:S42NaturalDeduction}.
+In few words, given a semilattice with minimum $\langle W, \leq, \mathsf{m} \rangle$ and a valuation $V : W \to 2^{At}$, an interpretation $\rho$ maps tokens to worlds and extends to positions via $\rho(\varepsilon) = \mathsf{m}$ and $\rho(s \cup \{x\}) = \rho(x) \sqcup \rho(s)$. Semilattice with minimum are an essential mathematical tool to interpret position. Infact,  once one decides which point in the Kripke model could be uniquely associated with a set of tokens $\{x_1,\ldots,x_n\}$ by taking the supremum,
+in a direct pro-order   this choice would not be unique, and in a direct pre-order the supremum of a finite set of elements might not exist. Thanks to semilattices with minimum, the problem disappears.
 
-\subsection{Finite Semilattice Models}\label{ssec:finite-models}
+The calculus $\eseq$ is derived from its natural-deduction counterpart presented in~\cite{Martini2024:S42NaturalDeduction}, with all the significant differences described in the Introduction. Consequently, its semantics can be defined in terms of semilattice models. However, if we aim to reason directly about the logical principles underlying the semantics (e.g., whether classical principles are employed, or what the computational interpretation of the definitions is), an interesting problem arises at this stage. Semilattice models, as well as in general Kripke structures, are intrinsically classical, and this conflicts with the constructive type theory on which \agda\ is based.
+
+Then we build on this obstacle and move toward a fist step into a purely constructive semantics for $\logic$,  in the short-time perspective to define its intuitionistic counterpart, a still open problem (see Section~\ref{sec:conclusions_future}).
+
+We describe now the \agda{}~formalization of a \emph{finite decidable} variant of this semantics, together with a constructive soundness theorem for $\eseq$ and the resulting equivalence with the Hilbert axiomatization $\hilbertlogic{\logic}$.
+
+From a theoretical perspective, we rely on the  \emph{finite model property} of $\logic$, first established by Segerberg~\cite{Segerberg1971:EssayClassicalModal}.  Recall that a system $\mathcal{M}$ of modal logic is said to have the finite model property if whenever a formula $A$ is not a theorem then there exists a finite model of $\mathcal{M}$ that falsifies $A$.
+
+
+The move to finite models is motivated by two considerations. First, restricting to a finite carrier $\mathrm{Fin}(n)$ makes the order relation and the evaluation function decidable, allowing the entire soundness proof to be carried out constructively (under the compiler flag \texttt{--safe}, with no postulates). Second, it avoids the universe-level complications that arise in a fully general semilattice formalization, where satisfaction must quantify over worlds of arbitrary type.
+
+\subsection{Finite Semilattice Models in \agda}\label{ssec:finite-models}
+
+Remember that $\mathrm{Fin}(n)$ denotes a type with $n$ elements or, in other words, elements of $\mathrm{Fin}(n)$  can be seen as natural numbers in the $I_m= \{m | m < n\}$.
+
+
+We start with the definition of \emph{finite models} and \emph{finite interpretation}:
 
 \begin{definition}[Finite Model \agdalink{S4dot2.Equivalence.FiniteModel.html\#FiniteModel}]\label{def:finite-model}
 A \emph{finite semilattice model} is a record $\mathcal{M} = \langle n, \sqcup, \mathsf{m}, \leq?, V \rangle$ where:
@@ -1101,12 +1223,26 @@ A \emph{finite semilattice model} is a record $\mathcal{M} = \langle n, \sqcup, 
 
 A \emph{finite interpretation} is a function $\rho : \mathrm{Token} \to \mathrm{Fin}(n)$ mapping tokens to worlds. The extension to positions is defined by $\rho\text{-pos}(\rho, \varepsilon) = \mathsf{m}$ and $\rho\text{-pos}(\rho, s \cup \{x\}) = \rho(x) \sqcup \rho\text{-pos}(\rho, s)$, faithfully implementing the semilattice interpretation.
 
-The evaluation function $\mathsf{eval} : \mathrm{Fin}(n) \to \mathrm{Formula} \to \mathrm{Bool}$ is defined by recursion on formulae, with the modal cases iterating over the finite set of worlds: $\mathsf{eval}(w, \Box A) = \mathsf{true}$ iff $\mathsf{eval}(v, A) = \mathsf{true}$ for all $v \geq w$, and $\mathsf{eval}(w, \Diamond A) = \mathsf{true}$ iff $\mathsf{eval}(v, A) = \mathsf{true}$ for some $v \geq w$. Since the carrier is finite, these quantifiers are decidable and the evaluation is total.
 
-Satisfaction of a position-formula $\pf{A}{s}$ by an interpretation $\rho$ is then $\rho \Vdash \pf{A}{s} \Leftrightarrow \mathsf{eval}(\rho\text{-pos}(\rho, s), A) = \mathsf{true}$. Context satisfaction $\rho \Vdash \Gamma$ requires $\rho \Vdash \pf{A}{s}$ for all $\pf{A}{s} \in \Gamma$, and succedent satisfaction $\rho \Vdash_\exists \Delta$ requires the existence of some $\pf{A}{s} \in \Delta$ with $\rho \Vdash \pf{A}{s}$.
+\bigskip
+We can now define the notion of evaluation and satisfaction of a p-formula.
+
+\begin{definition}[Evaluation \agdalink{S4dot2.Equivalence.FiniteModel.html\#eval}]\label{def:eval}
+The evaluation function $\mathsf{eval} : \mathrm{Fin}(n) \to \mathrm{Formula} \to \mathrm{Bool}$ is defined by recursion on formulae. The propositional cases are standard (conjunction is Boolean \texttt{and}, implication is $\lnot a \lor b$, etc.). The modal cases iterate over the finite set of worlds:
+\begin{align*}
+\mathsf{eval}(w, \Box A) &= \textstyle\bigwedge_{0 \le k < n} \bigl(w \leq? w_k \;\Rightarrow_{\mathrm{Bool}}\; \mathsf{eval}(w_k, A)\bigr), \\
+\mathsf{eval}(w, \Diamond A) &= \textstyle\bigvee_{0 \le k < n} \bigl(w \leq? w_k \;\wedge_{\mathrm{Bool}}\; \mathsf{eval}(w_k, A)\bigr).
+\end{align*}
+Since the carrier is finite, both quantifiers reduce to bounded iterations and the evaluation is total and decidable.
+\end{definition}
+
+\emph{Satisfaction} of a position-formula $\pf{A}{s}$ by an interpretation $\rho$ is defined as $\rho \Vdash \pf{A}{s} \;\Leftrightarrow\; \mathsf{eval}(\rho\text{-pos}(\rho, s), A) = \mathsf{true}$.
+We write $\mathcal{M}, \rho \Vdash \Gamma$ when $\rho \Vdash \pf{A}{s}$ for every $\pf{A}{s} \in \Gamma$, and $\mathcal{M}, \rho \Vdash_\exists \Delta$ when there exists $\pf{B}{t} \in \Delta$ with $\rho \Vdash \pf{B}{t}$.
+
+We are now in the position to define the modal semantics based on finite models:
 
 \begin{definition}[Modal Semantics \agdalink{S4dot2.Equivalence.FiniteModel.html\#ModalSemantics}]\label{def:modal-semantics}
-A \emph{modal semantics} for a finite model $\mathcal{M}$ is a record providing four witnesses:
+A \emph{modal semantics} $\mathsf{ms}$ for a finite model $\mathcal{M}$ is a record providing four witnesses:
 \begin{itemize}
 \item $\mathsf{box\text{-}sem}$: if $\mathsf{eval}(w, \Box A) = \mathsf{true}$ and $w \leq w'$, then $\mathsf{eval}(w', A) = \mathsf{true}$;
 \item $\mathsf{diamond\text{-}sem}$: if $\mathsf{eval}(w', A) = \mathsf{true}$ and $w \leq w'$, then $\mathsf{eval}(w, \Diamond A) = \mathsf{true}$;
@@ -1115,10 +1251,14 @@ A \emph{modal semantics} for a finite model $\mathcal{M}$ is a record providing 
 \end{itemize}
 \end{definition}
 
-Every finite model $\mathcal{M}$ admits a canonical instance, called $\mathsf{defaultModalSemantics}$, obtained directly from the bounded iteration defining $\mathsf{eval}$.
+Notice that every finite model $\mathcal{M}$ admits a canonical instance, called $\mathsf{defaultModalSemantics}$, obtained directly from the bounded iteration defining $\mathsf{eval}$.
+
+Thanks to the purely constructive interpretation described above, we can also prove \emph{purely} constructively the soundness for (the implementation of) $\eseq$ w.r.t.\ the just defined semantics: is a sequent is derivable in the system, then it is also satisfiable.
+
+%\subsection{Constructive Soundness}\label{ssec:constructive-soundness}
 
 
-\subsection{Constructive Soundness}\label{ssec:constructive-soundness}
+%\fbox{non abbiamo definito $\mathsf{ms}$ ma mi sembra non sia essenziale, toglierei}
 
 \begin{theorem}[Constructive Soundness \agdalink{S4dot2.Equivalence.FiniteSoundness.html\#finiteSoundness}]\label{thm:finite-soundness}
 For every finite model $\mathcal{M}$ with modal semantics $\mathsf{ms}$ and interpretation $\rho$:
@@ -1127,35 +1267,75 @@ For every finite model $\mathcal{M}$ with modal semantics $\mathsf{ms}$ and inte
 \]
 \end{theorem}
 
-\begin{proof}[Proof sketch]
-By induction on the derivation of $\seq{\Gamma}{\Delta}$. The propositional cases (conjunction, disjunction, implication, negation) are standard. The modal cases are:
+We only sketch the proof.
+\begin{proof}
+The proof proceeds by induction on the derivation of $\seq{\Gamma}{\Delta}$. The propositional cases (conjunction, disjunction, implication, negation) are standard. The modal cases are more interesting:
 \begin{itemize}
-\item $\Box\vdash$ (box elimination): from $\pf{\Box A}{s}$ in $\Gamma$ and $s \subseteq t$ in the rule premise, we obtain $\mathsf{eval}(\rho\text{-pos}(\rho, s), \Box A) = \mathsf{true}$ and $\rho\text{-pos}(\rho, s) \leq \rho\text{-pos}(\rho, t)$, then apply $\mathsf{box\text{-}sem}$.
+\item $\Box\vdash$: from $\pf{\Box A}{s}$ in $\Gamma$ and $s \subseteq t$ in the rule premise, we obtain $\mathsf{eval}(\rho\text{-pos}(\rho, s), \Box A) = \mathsf{true}$ and $\rho\text{-pos}(\rho, s) \leq \rho\text{-pos}(\rho, t)$, then apply $\mathsf{box\text{-}sem}$.
 
-\item $\vdash\Box$ (box introduction): the eigenposition condition ensures that the fresh token $x$ does not occur in $\Gamma$ or $\Delta$. For any world $v \geq \rho\text{-pos}(\rho, s)$, updating $\rho$ to map $x$ to $v$ satisfies the premise, and the freshness guarantees that all other satisfaction conditions are preserved.
+\item $\vdash\Box$: the eigenposition condition ensures that the fresh token $x$ does not occur in $\Gamma$ or $\Delta$. For any world $v \geq \rho\text{-pos}(\rho, s)$, updating $\rho$ to map $x$ to $v$ satisfies the premise, and the freshness guarantees that all other satisfaction conditions are preserved.
 
 \item $\Diamond\vdash$ and $\vdash\Diamond$ are handled dually.
 \end{itemize}
-The decidability of satisfaction at each step is crucial: it allows the inductive argument to case-split without invoking the law of excluded middle. The proof is fully constructive and compiles under \texttt{--cubical --safe} with no postulates.
+
 \end{proof}
 
+\noindent
+The \agda{} type of the soundness theorem directly mirrors the statement above:
 
-\subsection{(Classical) Hilbert--Sequent Equivalence}\label{ssec:hilbert-equiv}
+\ExecuteMetaData[EPTCS/CutElimCode.tex]{finiteSoundness}
+
+\paragraph{An important remark about the constructiveness of the proof.} The decidability of satisfaction at each step is crucial: it allows the inductive argument to case-split without invoking the law of excluded middle. The proof is fully constructive and compiles under \texttt{--cubical --safe} with no postulates.
+
+\bigskip
+
+%Thanks to the Weak Completeness Theorem~\ref{thm:weakcompl} and Theorem~\ref{thm:finite-soundness} just proven, we can state the equivalence between our deductive system and the Hilbert-style axiomatization $\hilbertlogic{\logic}$ in Section~\ref{sec:calculus}.
+
+\subsection{ On the partially classical equivalence between $\hilbertlogic{\logic}$ and $\eseq$ }\label{ssec:hilbert-equiv}
 
 By combining the constructive soundness theorem with the Weak Completeness Theorem for $\eseq$, we can close the circle between the Hilbert axiomatization $\hilbertlogic{\logic}$ and the sequent calculus $\eseq$.
 
-The direction from $\hilbertlogic{\logic}$ to $\eseq$ is exactly the Weak Completeness Theorem: if $\vdash_{\hilbertlogic{\logic}} A$ then $\seq{}{A^\varepsilon}$ is provable in $\eseq$. For the converse, we rely on the well-known finite model property of $\logic$, first established by Segerberg~\cite{Segerberg1971:EssayClassicalModal}. Given a finite semilattice model $\mathcal{M}$ with minimum $\mathsf{m}$ and world $w_0$, the upset $\{w \in W \mid w \geq w_0\}$ is itself a finite semilattice with minimum $w_0$. Thus a formula true at every minimum of every finite model is true at every world of every finite model, yielding Hilbert provability. We encode Segerberg's result as an axiom in the formalization:
+The direction from $\hilbertlogic{\logic}$ to $\eseq$ is exactly the Weak Completeness Theorem: if $\vdash_{\hilbertlogic{\logic}} A$ then $\seq{}{A^\varepsilon}$ is provable in $\eseq$. For the converse, we rely on the well-known \emph{finite model property} (FMP) of $\logic$. Following Harrop~\cite{Harrop1958:FiniteModels}, we say that a logic has the FMP if every non-provable formula has a finite counter\-model. In the formalization, we encode this as a definition together with two classical postulates from the literature, and derive all remaining results.
 
-\begin{definition}[Hilbert FMP \agdalink{S4dot2.Equivalence.ClassicalEquivalence.html\#hilbert-FMP}]\label{def:hilbert-fmp}
-\textbf{Postulate.} If $\mathsf{eval}(\mathcal{M}, \mathsf{m}, A) = \mathsf{true}$ for every finite model $\mathcal{M}$ and modal semantics $\mathsf{ms}$, then $\vdash_{\hilbertlogic{\logic}} A$.
+\begin{definition}[Finite Model Property \agdalink{S4dot2.Equivalence.ClassicalEquivalence.html\#HasFMP}]\label{def:fmp}
+A formula $A$ is \emph{valid} in a finite model $\mathcal{M}$ if $\mathsf{eval}(\mathcal{M}, w, A) = \mathsf{true}$ for every world $w$. The logic $\logic$ has the \emph{finite model property} if for every formula $A$ with $\nvdash_{\hilbertlogic{\logic}} A$, there exists a finite model $\mathcal{M}$ in which $A$ is not valid~\cite{Harrop1958:FiniteModels}.
 \end{definition}
+
+\begin{definition}[Segerberg FMP \agdalink{S4dot2.Equivalence.ClassicalEquivalence.html\#segerberg-FMP}]\label{post:segerberg-fmp}
+\textbf{Postulate.} If $\nvdash_{\hilbertlogic{\logic}} A$, then there exists a finite model $\mathcal{M}$ such that $\mathsf{eval}(\mathcal{M}, \mathsf{m}, A) = \mathsf{false}$.
+
+\smallskip\noindent\textit{Justification.}
+Segerberg~\cite{Segerberg1971:EssayClassicalModal} proves the FMP for $\logic$ in two steps. First, Kripke completeness yields an $\logic$ model $M$ and a world $w_0$ falsifying $A$. Lemmon filtration through the subformulas of $A$ produces a \emph{finite} $\logic$ model preserving truth of subformulas (Theorem~7.4) and convergence (Theorem~7.6(iv)); reflexivity and transitivity are preserved by the $\mathsf{K4}$ base case. Second, restricting to the upset $\{w' \mid w' \geq w_0\}$ yields a finite semilattice with minimum $w_0$, so the countermodel falsifies $A$ at its minimum.
+\end{definition}
+
+\begin{definition}[Decidability of $\vdash_{\hilbertlogic{\logic}}$ \agdalink{S4dot2.Equivalence.ClassicalEquivalence.html\#decidable-\%E2\%8A\%A2S4dot2}]\label{post:decidable}
+\textbf{Postulate.} For every formula $A$, either $\vdash_{\hilbertlogic{\logic}} A$ or $\nvdash_{\hilbertlogic{\logic}} A$.
+
+\smallskip\noindent\textit{Justification.} Harrop~\cite{Harrop1958:FiniteModels} proves that the FMP implies decidability (Lemma~4.1). Since $\logic$ has the FMP, provability in $\hilbertlogic{\logic}$ is decidable.
+\end{definition}
+
+\begin{theorem}[FMP for $\logic$ \agdalink{S4dot2.Equivalence.ClassicalEquivalence.html\#fmp-S4dot2}]\label{thm:fmp-s4dot2}
+$\logic$ has the finite model property.
+\end{theorem}
+
+\begin{proof}
+Given $\nvdash_{\hilbertlogic{\logic}} A$, the Segerberg FMP postulate yields a finite model $\mathcal{M}$ with $\mathsf{eval}(\mathcal{M}, \mathsf{m}, A) = \mathsf{false}$. In particular, $A$ is not valid in $\mathcal{M}$.
+\end{proof}
+
+\begin{lemma}[Hilbert FMP \agdalink{S4dot2.Equivalence.ClassicalEquivalence.html\#hilbert-FMP}]\label{lem:hilbert-fmp}\label{def:hilbert-fmp}
+If $\mathsf{eval}(\mathcal{M}, \mathsf{m}, A) = \mathsf{true}$ for every finite model $\mathcal{M}$ and modal semantics $\mathsf{ms}$, then $\vdash_{\hilbertlogic{\logic}} A$.
+\end{lemma}
+
+\begin{proof}
+By decidability of $\vdash_{\hilbertlogic{\logic}}$: if $\vdash_{\hilbertlogic{\logic}} A$ we are done; otherwise the Segerberg FMP postulate yields a finite model $\mathcal{M}$ with $\mathsf{eval}(\mathcal{M}, \mathsf{m}, A) = \mathsf{false}$, contradicting the hypothesis with the default modal semantics.
+\end{proof}
 
 \begin{theorem}[Sequent-to-Hilbert \agdalink{S4dot2.Equivalence.ClassicalEquivalence.html\#seq\%E2\%86\%92hilbert}]\label{thm:seq-to-hilbert}
 If $\seq{}{A^\varepsilon}$ is provable in $\eseq$, then $\vdash_{\hilbertlogic{\logic}} A$.
 \end{theorem}
 
 \begin{proof}
-Let $\mathcal{M}$ be an arbitrary finite model with modal semantics $\mathsf{ms}$. Choose the interpretation $\rho = \lambda\_.\ \mathsf{m}$, so that $\rho\text{-pos}(\rho, \varepsilon) = \mathsf{m}$. The antecedent is empty, so context satisfaction $\mathcal{M}, \rho \Vdash []$ holds vacuously. By the soundness theorem (Theorem~\ref{thm:finite-soundness}), there exists $\pf{A'}{s'} \in [A^\varepsilon]$ with $\rho \Vdash \pf{A'}{s'}$. Since $[A^\varepsilon]$ is a singleton, pattern-matching on the membership witness forces $A' = A$ and $s' = \varepsilon$, yielding $\mathsf{eval}(\mathcal{M}, \mathsf{m}, A) = \mathsf{true}$. The result follows by the Hilbert FMP postulate.
+Let $\mathcal{M}$ be an arbitrary finite model with modal semantics $\mathsf{ms}$. Choose the interpretation $\rho = \lambda\_.\ \mathsf{m}$, so that $\rho\text{-pos}(\rho, \varepsilon) = \mathsf{m}$. The antecedent is empty, so context satisfaction $\mathcal{M}, \rho \Vdash []$ holds vacuously. By the soundness theorem (Theorem~\ref{thm:finite-soundness}), there exists $\pf{A'}{s'} \in [A^\varepsilon]$ with $\rho \Vdash \pf{A'}{s'}$. Since $[A^\varepsilon]$ is a singleton, pattern-matching on the membership witness forces $A' = A$ and $s' = \varepsilon$, yielding $\mathsf{eval}(\mathcal{M}, \mathsf{m}, A) = \mathsf{true}$. The result follows by Lemma~\ref{lem:hilbert-fmp}.
 \end{proof}
 
 \begin{corollary}[Hilbert--Sequent Equivalence \agdalink{S4dot2.Equivalence.ClassicalEquivalence.html\#hilbert-sequent-equiv}]\label{cor:hilbert-sequent-equiv}
@@ -1174,20 +1354,25 @@ If $\vdash_{\hilbertlogic{\logic}} A$, then for every finite model $\mathcal{M}$
 \section{Related Work}\label{sec:related}
 
 \commento{
-One of the important instances where S4.2 arises is in the formalization of temporal reasoning, particularly through the lens of Diodorean modality. As investigated by Goldblatt \cite{Goldblatt1980:Diodorean}, if one interprets modal necessity $\Box$ in the Diodorean sense as "it is true now and will always be the case that," and possibility $\Diamond$ as "it is true now or will be true at some future time," then within the framework of $n$-dimensional Minkowski spacetime (for $n \geq 2$) --- the mathematical setting of special relativity --- the set of valid modal sentences is precisely the logic S4.2. The temporal ordering in this context, where an event $y$ is in the future of $x$ if a signal can travel from $x$ to $y$ at or below the speed of light, is reflexive and transitive (validating axioms T and 4). Crucially, this ordering is also directed: any two events share a common future event. This directedness property of the causal future is what validates the Geach axiom G, thereby establishing S4.2 as the logic of this relativistic temporal interpretation.
+One of the important instances where S4.2 arises is in the formalization of temporal reasoning, particularly through the lens of Diodorean modality. As investigated by Goldblatt~\cite{Goldblatt1980:Diodorean}, if one interprets modal necessity $\Box$ in the Diodorean sense as ``it is true now and will always be the case that,'' and possibility $\Diamond$ as ``it is true now or will be true at some future time,'' then within the framework of $n$-dimensional Minkowski spacetime (for $n \geq 2$) --- the mathematical setting of special relativity --- the set of valid modal sentences is precisely the logic S4.2. The temporal ordering in this context, where an event $y$ is in the future of $x$ if a signal can travel from $x$ to $y$ at or below the speed of light, is reflexive and transitive (validating axioms T and 4). Crucially, this ordering is also directed: any two events share a common future event. This directedness property of the causal future is what validates the Geach axiom G, thereby establishing S4.2 as the logic of this relativistic temporal interpretation.
 
-Another fundamental area where S4.2 plays a pivotal role is in the modal logic of set-theoretic forcing, a powerful technique developed by Paul Cohen to prove the independence of the Continuum Hypothesis and other statements from ZFC set theory. Hamkins and L\"owe, in their work "The modal logic of forcing" \cite{Hamkins2008:ModalForcing}, explored the principles governing truth across forcing extensions when modal operators are interpreted as follows: $\Box\phi$ means "$\phi$ holds in all forcing extensions," and $\Diamond\phi$ means "$\phi$ holds in some forcing extension." They demonstrated that, assuming ZFC is consistent, the ZFC-provable principles of forcing under this interpretation are exactly the theorems of S4.2. The axioms K, T, and 4 are relatively straightforward to verify. The Geach axiom G is validated by the inherent directedness of the forcing relation: given any two forcing conditions, there exists a common extension (e.g., via product forcing), ensuring that if something is possibly necessary, it is necessarily possible. Their proof ingeniously uses "button" and "switch" sentences within models of set theory (like L) to simulate finite S4.2 Kripke models, thereby showing that any non-S4.2 theorem can be falsified in some model of ZFC.
+Another fundamental area where S4.2 plays a pivotal role is in the modal logic of set-theoretic forcing, a powerful technique developed by Paul Cohen to prove the independence of the Continuum Hypothesis and other statements from ZFC set theory. Hamkins and L\"owe, in their work ``The modal logic of forcing''~\cite{Hamkins2008:ModalForcing}, explored the principles governing truth across forcing extensions when modal operators are interpreted as follows: $\Box\phi$ means ``$\phi$ holds in all forcing extensions,'' and $\Diamond\phi$ means ``$\phi$ holds in some forcing extension.'' They demonstrated that, assuming ZFC is consistent, the ZFC-provable principles of forcing under this interpretation are exactly the theorems of S4.2. The axioms K, T, and 4 are relatively straightforward to verify. The Geach axiom G is validated by the inherent directedness of the forcing relation: given any two forcing conditions, there exists a common extension (e.g., via product forcing), ensuring that if something is possibly necessary, it is necessarily possible. Their proof ingeniously uses ``button'' and ``switch'' sentences within models of set theory (like L) to simulate finite S4.2 Kripke models, thereby showing that any non-S4.2 theorem can be falsified in some model of ZFC.
 
-The reach of S4.2 extends further into abstract algebra. Berger, Christensen Block, and L\"owe investigated "The modal logic of abelian groups" \cite{Berger2023:ModalAbelian}, where worlds are abelian groups and the accessibility relation $A \leq B$ signifies that group $A$ is isomorphic to a subgroup of group $B$. Under this interpretation, $\Box\phi$ means $\phi$ holds in all supergroups (up to isomorphism), and $\Diamond\phi$ means $\phi$ holds in some supergroup. Their main result establishes that the modal logic of the class of all abelian groups under this subgroup relation is precisely S4.2. The reflexivity and transitivity of the subgroup relation validate axioms T and 4. The directedness property, crucial for axiom G, is satisfied because any two abelian groups $A$ and $B$ can be embedded into their direct product $A \times B$, which serves as a common supergroup. The proof again employs a sophisticated adaptation of the button and switch technique, using properties of prime order elements and divisibility to demonstrate the independence required to show that the logic is no stronger than S4.2.
+The reach of S4.2 extends further into abstract algebra. Berger, Christensen Block, and L\"owe investigated ``The modal logic of abelian groups''~\cite{Berger2023:ModalAbelian}, where worlds are abelian groups and the accessibility relation $A \leq B$ signifies that group $A$ is isomorphic to a subgroup of group $B$. Under this interpretation, $\Box\phi$ means $\phi$ holds in all supergroups (up to isomorphism), and $\Diamond\phi$ means $\phi$ holds in some supergroup. Their main result establishes that the modal logic of the class of all abelian groups under this subgroup relation is precisely S4.2. The reflexivity and transitivity of the subgroup relation validate axioms T and 4. The directedness property, crucial for axiom G, is satisfied because any two abelian groups $A$ and $B$ can be embedded into their direct product $A \times B$, which serves as a common supergroup. The proof again employs a sophisticated adaptation of the button and switch technique, using properties of prime order elements and divisibility to demonstrate the independence required to show that the logic is no stronger than S4.2.
 }
 
 
-The proof theory of $\logic$ has been previously investigated in several papers, which differ methodologically from the approach we propose. In~\cite{Vigano1997:LabelledLogics,Basin1998:NonClassical}, $\logic$ is analysed through labelled natural deduction systems, wherein the properties of the accessibility relation in the underlying semantics are explicitly encoded in the deductive framework. Sequent calculi for $\logic$ have also been explored in~\cite{Dyckhoff2012:AdmissibilityModal}, where, within a labelled framework $\logic$ is characterized as the \emph{modal companion} of \textsf{Jan-De Morgan} logic, and in~\cite{Takano2019:S42Subformula}, where a restricted form of the cut rule is introduced in order to obtain a subformula property that enables significant corollaries, such as the interpolation property.
+Modal logic proof theory has received renewed interest in recent decades. Following the seminal work of Fitting~\cite{Fitting83,Fitting12}, two main ``traditions'' have emerged: labelled systems and ``geometric'' systems. The former involve enriching the deductive system with information concerning the underlying relational semantics, whose properties are enforced through rules governing labels within the deductive framework~\cite{Vigano1997:LabelledLogics, Negri:2011}. In the latter case, modal information is handled in a more syntactic way by introducing some ``spatial coordinates'' in the proofs. This category includes all approaches based on hypersequents, nested sequents (and their variants), and display sequents~\cite{Lellmann15, Wansing1999:PredicateDisplay,Ciabattoni2014:HypersequentDisplay}. With respect to modal logic $\logic$, its proof-theory has been investigated in the literature using different approaches from the one proposed in this article.% (the close connection with its natural-deduction counterpart~\cite{Martini2024:S42NaturalDeduction} has already been discussed in the Introduction).
+ In~\cite{Vigano1997:LabelledLogics,Basin1998:NonClassical}, $\logic$ is analysed through labelled natural deduction systems, wherein, as said above, the directness property of the accessibility relation in the underlying semantics is explicitly encoded in the deductive framework. Sequent calculi for $\logic$ have also been explored in~\cite{Dyckhoff2012:AdmissibilityModal}, where, within a sequent-style labelled framework $\logic$ is characterized as the \emph{modal companion} of \textsf{Jan-De Morgan} logic. Moreover, in~\cite{Takano2019:S42Subformula}, a restricted form of the cut-rule is introduced again in a sequent-style calculus in order to achieve a of subformula property that enables significant corollaries, such as the interpolation theorem.
 
-On the implementation side, the automation of modal reasoning is receiving increasing attention from the research community. 
-In this context, it is worth mentioning important developments in the HOL Light proof assistant by Maggesi et al., which are closely aligned with the goals of our work. 
-In~\cite{Maggesi2021:ProvabilityLogic}, the authors present a formalized proof of modal completeness for G\"odel–L\"ob provability logic (GL) within \textsf{HOL Light}.
-This work is further extended towards a full mechanization of GL in~\cite{Maggesi2023:GodelLob}. 
+
+
+
+
+Moving to related work also oriented to implementation, in the last few years the automation of modal reasoning is receiving increasing attention from the research community.
+In this context, we want to mention the ongoing developments of modal systems in the \texttt{HOL Light} proof assistant by Maggesi et al., which are closely aligned with the goals of our work.
+In~\cite{Maggesi2021:ProvabilityLogic}, the authors present a formalized proof of modal completeness for G\"odel–L\"ob provability logic (GL) within \texttt{HOL Light}.
+This work is further extended towards a full mechanization of GL in~\cite{Maggesi2023:GodelLob}.
 Building upon these contributions, the approach has been generalized in the \textsf{HOLMS} framework to encompass a broader class of normal modal logics~\cite{Bilotta2024:GrowingHOLMS}, and further extended with a modular proof-search framework based on formalized modal completeness~\cite{Bilotta2026:ModularHOLMS}.
 This project constitutes a closely related reference, as our proposed implementation is part of an ongoing effort to develop a modular implementation of all normal extensions of $\mathsf{K}$ up to $\axname{S}5$ (see Section~\ref{sec:conclusions_future}).
 
@@ -1196,30 +1381,35 @@ This project constitutes a closely related reference, as our proposed implementa
 
 \newcommand{\framework}{\mathsf{NAMOR}}
 
-In this paper, we introduced $\mathsf{E}_{\textsf{S4.2}}$, an extended sequent calculus for the modal logic $\logic$, which utilizes position-formulae, annotated with coordinates represented as sets of uninterpreted tokens, to manage modal information. We implemented the system in the \agda~proof assistant, providing a formal syntactic proof of the cut-elimination theorem, from which the consistency of the system and the subformula property follow. We also formalized the weak completeness of $\calculus$ with respect to the Hilbert-style axiomatization of $\logic$. On the semantic side, we formalized a finite decidable variant of the semilattice semantics, proved a constructive soundness theorem (with no postulates, under \texttt{--safe}), and established the equivalence between provability in $\hilbertlogic{\logic}$ and provability in $\eseq$ (Section~\ref{sec:finite-semantics}).
+In this paper, we introduced $\mathsf{E}_{\textsf{S4.2}}$, an extended sequent calculus for the modal logic $\logic$, which enrich formulae with coordinates called positions---represented as sets of uninterpreted tokens--- to manage modal information. We implemented the system and its metatheoretical structural properties in the \agda{}~proof assistant: we prove the weak completeness w.r.t.\ a standard Hilbert-style and provide a formal syntactic proof of the cut-elimination theorem, from which the consistency of the system and the subformula property follow. %We also formalized the weak completeness of $\calculus$ with respect to the Hilbert-style axiomatization of $\logic$.
+On the semantic side, we formalized a finite decidable variant of the semilattice semantics, proved a constructive soundness theorem (with no postulates, under \texttt{--safe}), and established the equivalence between provability in $\hilbertlogic{\logic}$ and provability in $\eseq$ (Section~\ref{sec:finite-semantics}).
 
 
+Our investigation opens several promising research directions. As ongoing work, we are focusing on the definition of an intuitionistic version of $\logic$, denoted by $I\logic$, which constitutes a non-trivial task. On the one hand, the intuitionistic deductive system can be naturally obtained by restricting sequents to have a single formula on the right-hand side. On the other hand, a standard Hilbert-style intuitionistic axiomatization is not available in the literature and must therefore be carefully developed, particularly with regard to the elimination of classical axioms.
+Moreover, extending the approach partially adopted in this paper for finite model semantics, we aim to develop a fully intuitionistic metatheory and semantics for $I\logic$, based exclusively on constructive mathematical principles.
+In addition to the intrinsic interest in intuitionistic logic, we plan to investigate the Curry–Howard correspondence for $I\logic$. Understanding the computational content of $\logic$ appears especially attractive, given its wide range of applications and the characteristic properties of its models, which capture strong features of rewriting systems and programs.
+Along the same line of research, it also seems worthwhile to further investigate and implement the various families of semantics known for $\logic$. For instance, one may explore how to constructivize the full semilattice semantics introduced in~\cite{Martini2024:S42NaturalDeduction}, as well as the semantics based on abelian groups developed in~\cite{Berger2023:ModalAbelian}. The latter direction appears particularly challenging due to the intrinsically classical nature of Kripke-style structures. A possible approach would be to replace Kripke frames with Beth structures and subsequently redefine the corresponding algebraic interpretations in a constructive setting.
+On the semantic side, several additional directions are being explored within the formalization: a countervaluation result showing that every unprovable sequent admits a falsifying three-valued assignment; a partial formalization of Kripke frame theory for $\logic$, including p-morphisms and the binary tree frames $\mathcal{B}$ and $\mathcal{B}^\Omega$; a fair saturation algorithm for sequent reduction with candidate model extraction, yielding a conditional decidability result; and a development of the subgroup lattice of abelian groups as a model of $\logic$, following~\cite{Berger2023:ModalAbelian}.
+
+Furthermore, we intend to examine whether our position-based calculus can be extended to other logical systems. For example, the proof theory of the central intermediate system $\axname{S4.3}$ remains underexplored outside labelled frameworks. More generally, and perhaps more significantly, we aim to understand how position-based calculi can be employed to capture non-normal extensions of $\axname{K}$, which have recently been standardized in~\cite{damonte} and were previously studied using linear nested sequents,  a syntactic reformulation of 2-sequents, in~\cite{Pimentel2019}.
+
+Finally, the results presented in this work are part of a broader research project whose core is a unified framework, denoted by $\framework$ (\textsf{New Agda Modal Realization}), implemented in Cubical \agda{} and building upon the theory of extended sequents~\cite{Martini2023:CutElimination}. The aim of $\framework$ is to encompass the full range of normal modal logics from $\mathsf{K}$ to $\mathsf{S5}$, including $\logic$. In accordance with the underlying theoretical systems, $\framework$ is designed to be highly parametric, since all normal modal systems share a common set of rules and individual systems can be obtained by appropriately instantiating specific parameters. We are currently implementing the Cut-Elimination Theorem, which can be established uniformly for all normal extensions of $\axname{K}$, and, in light of the considerations discussed above, we are also investigating possible extensions of $\framework$ to non-normal modal logics.
+
+\commento{
 \begin{itemize}
-    \item We are planning a study of intuitionistic S4.2. From a syntactic point of view, the intuitionistic system can be obtained naturally by restricting sequents to have a single formula on the right side. On the other hand a standard Hilbert style intuitionistic axiomatization is not known.  
+    \item We are planning a study of intuitionistic S4.2. From a syntactic point of view, the intuitionistic system can be obtained naturally by restricting sequents to have a single formula on the right side. On the other hand a standard Hilbert style intuitionistic axiomatization is not known.
  \item We also want to extend the Curry-Howard analogy to the resulting system, to provide a full computational study of the logic.
  \item We aim to develop a more constructive meta-theory and semantics, exploring Beth's models and constructive lattices as alternatives to classical Kripke structures.
- \item This work represents the first step toward the development of a unified framework, $\framework$ (\textsf{New \agda~MOdal Realization}), which builds upon the theory of 2-sequents and extended sequents~\cite{Martini2023:CutElimination} and aims to encompass the entire range of normal modal logics from $\mathsf{K}$ to $\mathsf{S}5$. Following the underlying theoretical systems, $\framework$ is designed to be highly parametric, as all normal modal systems share the same set of rules.
+ \item This work represents the first step toward the development of a unified framework, $\framework$ (\textsf{New \agda{}~MOdal Realization}), which builds upon the theory of 2-sequents and extended sequents~\cite{Martini2023:CutElimination} and aims to encompass the entire range of normal modal logics from $\mathsf{K}$ to $\mathsf{S}5$. Following the underlying theoretical systems, $\framework$ is designed to be highly parametric, as all normal modal systems share the same set of rules.
 \end{itemize}
 
-Beyond the syntactic results presented above, the \agda~formalization also includes ongoing work on semantic aspects and decidability:
-\begin{itemize}
- \item The constructive soundness theorem for finite semilattice models presented in Section~\ref{sec:finite-semantics} has been formalized with no postulates under \texttt{--safe}, together with the Hilbert--Sequent equivalence (Corollary~\ref{cor:hilbert-sequent-equiv}), which relies on a single classical postulate encoding the finite model property.
- \item A countervaluation result has been proved (with no postulates, under \texttt{--safe}): every unprovable sequent admits a falsifying three-valued assignment. This uses a membership-based valuation where formulas in the antecedent are assigned true and formulas in the succedent are assigned false.
- \item Kripke frame theory for $\logic$ has been partially formalized, including p-morphism theory and the frames $\mathcal{B}$ (binary tree) and $\mathcal{B}^\Omega$ (binary tree with final cluster). In particular, the implication from the final cluster property to weak directedness has been fully proved. The full characterization theorems remain partially formalized.
- \item A fair saturation algorithm for sequent reduction has been implemented, together with a candidate model extraction procedure. This yields a decidability result for $\calculus$ that is conditional on seven remaining postulates, most of which are caused by technical limitations of with-abstraction in Cubical \agda.
- \item Motivated by applications to abstract algebra, the formalization includes a development of the subgroup lattice of abelian groups as a model of $\logic$, following~\cite{Berger2023:ModalAbelian}.
-\end{itemize}
+}
 
 \commento{
 
-As part of our ongoing work, we are formalizing in \agda~the soundness theorem with respect to the Hilbert-style axiomatization. Moreover, motivated by applications to mathematics, we are mechanizing the semantics and proofs presented in~\cite{Berger2023:ModalAbelian}, where $\logic$ is interpreted as the modal logic of abelian groups.
+As part of our ongoing work, we are formalizing in \agda{}~the soundness theorem with respect to the Hilbert-style axiomatization. Moreover, motivated by applications to mathematics, we are mechanizing the semantics and proofs presented in~\cite{Berger2023:ModalAbelian}, where $\logic$ is interpreted as the modal logic of abelian groups.
 
-This work represents the first step toward the development of a unified framework, $\framework$ (\textsf{New \agda~MOdal Realization}), which builds upon the theory of 2-sequents and extended sequents~\cite{Martini2023:CutElimination} and aims to encompass the entire range of normal modal logics from $\mathsf{K}$ to $\mathsf{S}5$. Following the underlying theoretical systems, $\framework$ is designed to be highly parametric, as all normal modal systems share the same set of rules.
+This work represents the first step toward the development of a unified framework, $\framework$ (\textsf{New \agda{}~MOdal Realization}), which builds upon the theory of 2-sequents and extended sequents~\cite{Martini2023:CutElimination} and aims to encompass the entire range of normal modal logics from $\mathsf{K}$ to $\mathsf{S}5$. Following the underlying theoretical systems, $\framework$ is designed to be highly parametric, as all normal modal systems share the same set of rules.
 
 
 
@@ -1444,6 +1634,9 @@ E)} $
 \fi
 
 
+\section*{Funding}
+This work was supported by the Istituto Nazionale di Alta Matematica (INdAM), through the Gruppo Nazionale per le Strutture Algebriche, Geometriche e le loro Applicazioni (GNSAGA).
+
 \newpage
 \printbibliography
 
@@ -1455,7 +1648,7 @@ E)} $
 %\section{\texorpdfstring{Rules of $\mathsf{E}_{{\textsf{S4.2}}}$}{Rules of E-S4.2}}\label{appendix:rules}
 
 
-%\section{\agda~Implementation of $\calculus$ rules}\label{appendix:rulesagda}
+%\section{\agda{}~Implementation of $\calculus$ rules}\label{appendix:rulesagda}
 
 
 
@@ -1530,12 +1723,12 @@ Then, $\Pi[x/t]$ is a valid proof of the e-sequent $\seq{\Gamma[x/t]}{\Delta[x/t
 
 
 
-%\subsection{Proof of the Mix Lemma \ref{lem:mix}}\label{appendix:mixproof}
+%\subsection{Proof of the Mix Lemma~\ref{lem:mix}}\label{appendix:mixproof}
 
 
 
 
-%\subsection{``On-paper'' Proof of the Cut-Elimination Theorem \ref{thm:cut-elim}}\label{appendix:cutproof}
+%\subsection{``On-paper'' Proof of the Cut-Elimination Theorem~\ref{thm:cut-elim}}\label{appendix:cutproof}
 
 
 \end{document}

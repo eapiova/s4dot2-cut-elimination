@@ -12,10 +12,11 @@ open import Cubical.Data.Sigma
 open import Cubical.Data.Sum using (_⊎_; inl; inr)
 open import Cubical.Data.Empty using (⊥) renaming (rec to ⊥-rec)
 open import Cubical.Data.Unit using (Unit; tt)
-open import Cubical.Data.Bool using (Bool; true; false)
+open import Cubical.Data.Bool using (Bool; true; false; false≢true)
 open import Cubical.Data.Nat.Order using (_≤_) renaming (≤-refl to ≤ℕ-refl)
 
 open import S4dot2.Syntax hiding (_⊢_) renaming (_∧_ to _and'_; _∨_ to _or'_)
+open import S4dot2.ListExt using (mem-++-l; mem-++-r; mem-++-case)
 
 -- =============================================================================
 -- Subformula Enumeration
@@ -125,15 +126,25 @@ isModal (_ or' _) = false
 isModal (_ ⇒ _) = false
 isModal (¬ _) = false
 
+-- Filter a list to keep only modal formulas
+filterModal : List Formula → List Formula
+filterModal [] = []
+filterModal (f ∷ fs) with isModal f
+... | true = f ∷ filterModal fs
+... | false = filterModal fs
+
+-- filterModal keeps modal formulas
+filterModal-keeps : ∀ {A fs} → A ∈ fs → isModal A ≡ true → A ∈ filterModal fs
+filterModal-keeps {A} {.A ∷ fs} here isMod with isModal A
+... | true = here
+... | false = ⊥-rec (false≢true isMod)
+filterModal-keeps {A} {f ∷ fs} (there m) isMod with isModal f
+... | true = there (filterModal-keeps m isMod)
+... | false = filterModal-keeps m isMod
+
 -- All modal subformulas of a single formula
 modalSubformulas : Formula → List Formula
 modalSubformulas A = filterModal (allSubformulas A)
-  where
-    filterModal : List Formula → List Formula
-    filterModal [] = []
-    filterModal (f ∷ fs) with isModal f
-    ... | true = f ∷ filterModal fs
-    ... | false = filterModal fs
 
 -- All (unpositioned) subformulas from a context
 allSubformulasCtx : List PFormula → List Formula
@@ -144,3 +155,14 @@ allSubformulasCtx ((A ^ _) ∷ pfs) = allSubformulas A ++ allSubformulasCtx pfs
 modalSubformulasOfCtx : List PFormula → List Formula
 modalSubformulasOfCtx [] = []
 modalSubformulasOfCtx ((A ^ _) ∷ pfs) = modalSubformulas A ++ modalSubformulasOfCtx pfs
+
+-- If a modal formula is in allSubformulasCtx, it is in modalSubformulasOfCtx
+allSubCtx-modal→modalSubCtx : ∀ {A} ctx
+  → A ∈ allSubformulasCtx ctx
+  → isModal A ≡ true
+  → A ∈ modalSubformulasOfCtx ctx
+allSubCtx-modal→modalSubCtx {A} [] ()
+allSubCtx-modal→modalSubCtx {A} ((F ^ s) ∷ ctx) m isMod
+  with mem-++-case (allSubformulas F) (allSubformulasCtx ctx) m
+... | inl inF = mem-++-l (filterModal-keeps inF isMod)
+... | inr inCtx = mem-++-r (modalSubformulas F) (allSubCtx-modal→modalSubCtx ctx inCtx isMod)

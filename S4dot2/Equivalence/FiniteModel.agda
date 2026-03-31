@@ -14,6 +14,7 @@ open import Cubical.Foundations.Function using (_$_)
 open import Cubical.Data.List hiding ([_])
 open import Cubical.Data.Nat using (ℕ; zero; suc; _+_; _·_; predℕ; snotz; znots)
 open import Cubical.Data.Nat.Order using (zero-≤; suc-≤-suc; pred-≤-pred; <-weaken) renaming (_≤_ to _≤ℕ_; _<_ to _<ℕ_)
+open import Cubical.Data.Nat.Order.Inductive using (_<ᵗ_; _≤ᵗ_; <ᵗsucm; <ᵗ-trans-suc)
 open import Cubical.Data.Fin using (Fin; fzero; fsuc; toℕ)
 open import Cubical.Data.Fin.Properties using (isSetFin; discreteFin; Fin-fst-≡)
 open import Cubical.Data.Sigma
@@ -92,13 +93,26 @@ module FiniteModelCore
   m-min : ∀ w → m ≤ w
   m-min w = ⊔-≤? m w (m-unit w)
 
+  ≤ᵗ-refl : (k : ℕ) → k ≤ᵗ k
+  ≤ᵗ-refl k = <ᵗsucm {m = k}
+
+  dropLtSuc : {x k : ℕ} → x <ᵗ suc k → x ≢ k → x <ᵗ k
+  dropLtSuc {x = zero} {k = zero} _ x≢k = ⊥-rec (x≢k refl)
+  dropLtSuc {x = zero} {k = suc k} _ _ = tt
+  dropLtSuc {x = suc x} {k = zero} x<1 _ = ⊥-rec x<1
+  dropLtSuc {x = suc x} {k = suc k} x<sk x≢k =
+    dropLtSuc x<sk (λ x≡k → x≢k (cong suc x≡k))
+
+  toℕW : World → ℕ
+  toℕW = toℕ {k = n}
+
   -- Bound on toℕ for elements of Fin n
-  -- In Cubical, Fin n = Σ[ k ∈ ℕ ] k < n, and toℕ is fst
-  toℕ<n : (x : World) → toℕ x <ℕ n
+  -- In Cubical, Fin n = Σ[ k ∈ ℕ ] k <ᵗ n, and toℕ is fst
+  toℕ<n : (x : World) → toℕW x <ᵗ n
   toℕ<n (k , k<n) = k<n
 
   -- Constructor for Fin n from ℕ with proof
-  fromℕ≤ : (k : ℕ) → k <ℕ n → World
+  fromℕ≤ : (k : ℕ) → k <ᵗ n → World
   fromℕ≤ k k<n = k , k<n
 
   -- Interpretation and position evaluation
@@ -143,9 +157,9 @@ module FiniteModelCore
   eval : World → Formula → Bool
   -- Helper: iterate over worlds 0..k-1, checking □ semantics
   -- eval-all□-bounded w A k pf checks worlds with index < k (where k ≤ n)
-  eval-all□-bounded : World → Formula → (k : ℕ) → k ≤ℕ n → Bool
+  eval-all□-bounded : World → Formula → (k : ℕ) → k ≤ᵗ n → Bool
   -- Helper: iterate over worlds 0..k-1, checking ♢ semantics
-  eval-any♢-bounded : World → Formula → (k : ℕ) → k ≤ℕ n → Bool
+  eval-any♢-bounded : World → Formula → (k : ℕ) → k ≤ᵗ n → Bool
 
   eval w (Atom p) = V w p
   eval w (A and' B) = eval w A and eval w B
@@ -154,41 +168,41 @@ module FiniteModelCore
   eval w (¬_ A) = not (eval w A)
   eval w (□ A) = eval-all□-bounded w A n ≤-refl
     where
-      ≤-refl : n ≤ℕ n
-      ≤-refl = zero , refl
+      ≤-refl : n ≤ᵗ n
+      ≤-refl = ≤ᵗ-refl n
   eval w (♢ A) = eval-any♢-bounded w A n ≤-refl
     where
-      ≤-refl : n ≤ℕ n
-      ≤-refl = zero , refl
+      ≤-refl : n ≤ᵗ n
+      ≤-refl = ≤ᵗ-refl n
 
   -- □A holds at w iff A holds at all w' ≥ w
   -- Check worlds 0, 1, ..., k-1 for accessibility from w
   eval-all□-bounded w A zero _ = true  -- no more worlds to check
   eval-all□-bounded w A (suc k) sk≤n =
-    let k<n : k <ℕ n
+    let k<n : k <ᵗ n
         k<n = sk≤n  -- suc k ≤ n is exactly k < n
         w' : World
         w' = fromℕ≤ k k<n
         -- If w ≤ w', check that A holds at w'; otherwise skip this world
         checkThis : Bool
         checkThis = (w ≤? w') →Bool eval w' A
-        k≤n : k ≤ℕ n
-        k≤n = <-weaken k<n
+        k≤n : k ≤ᵗ n
+        k≤n = <ᵗ-trans-suc {n = k} {m = n} k<n
     in checkThis and eval-all□-bounded w A k k≤n
 
   -- ♢A holds at w iff A holds at some w' ≥ w
   -- Check worlds 0, 1, ..., k-1 for accessibility from w
   eval-any♢-bounded w A zero _ = false  -- no more worlds to check
   eval-any♢-bounded w A (suc k) sk≤n =
-    let k<n : k <ℕ n
+    let k<n : k <ᵗ n
         k<n = sk≤n
         w' : World
         w' = fromℕ≤ k k<n
         -- If w ≤ w' and A holds at w', then ♢A holds
         checkThis : Bool
         checkThis = (w ≤? w') and eval w' A
-        k≤n : k ≤ℕ n
-        k≤n = <-weaken k<n
+        k≤n : k ≤ᵗ n
+        k≤n = <ᵗ-trans-suc {n = k} {m = n} k<n
     in checkThis or eval-any♢-bounded w A k k≤n
 
   _⊨_ : World → Formula → Type
@@ -327,20 +341,16 @@ module FiniteModelCore
 
   -- Lemma: fromℕ≤ gives the index back
   -- Since fromℕ≤ k k<n = (k , k<n) and toℕ (k , _) = k, this is definitional
-  toℕ-fromℕ≤ : (k : ℕ) (k<n : k <ℕ n) → toℕ (fromℕ≤ k k<n) ≡ k
+  toℕ-fromℕ≤ : (k : ℕ) (k<n : k <ᵗ n) → toℕW (fromℕ≤ k k<n) ≡ k
   toℕ-fromℕ≤ k k<n = refl
 
   -- When w ≤ w' and w' = fromℕ≤ k, we get the check contribution
-  box-sem-step : (w : World) (A : Formula) (k : ℕ) (k≤n : k ≤ℕ n)
+  box-sem-step : (w : World) (A : Formula) (k : ℕ) (k≤n : k ≤ᵗ n)
                → eval-all□-bounded w A k k≤n ≡ true
-               → (w' : World) → toℕ w' <ℕ k → (w ≤? w') ≡ true
+               → (w' : World) → toℕW w' <ᵗ k → (w ≤? w') ≡ true
                → eval w' A ≡ true
-  box-sem-step w A zero _ _ w' (m , p) _ = ⊥-rec (snotz (+-suc m (toℕ w') ∙ p))  -- k = 0, but w' < 0 is impossible
-    where
-      +-suc : (a b : ℕ) → suc (a + b) ≡ a + suc b
-      +-suc zero b = refl
-      +-suc (suc a) b = cong suc (+-suc a b)
-  box-sem-step w A (suc k) sk≤n all□ w' w'<sk w≤w' with toℕ w' ≟ k
+  box-sem-step w A zero _ _ w' () _
+  box-sem-step w A (suc k) sk≤n all□ w' w'<sk w≤w' with toℕW w' ≟ k
     where
       _≟_ : (m n : ℕ) → Dec (m ≡ n)
       zero ≟ zero = yes refl
@@ -351,25 +361,21 @@ module FiniteModelCore
       ... | no ¬p = no (λ p → ¬p (cong predℕ p))
   box-sem-step w A (suc k) sk≤n all□ w' w'<sk w≤w' | yes w'≡k =
     -- w' has index k, so we check the current step
-    let k<n = sk≤n
+    let k<n : k <ᵗ n
+        k<n = sk≤n
         checkThis = (w ≤? fromℕ≤ k k<n) →Bool eval (fromℕ≤ k k<n) A
         andEq = all□
         checkTrue = and-true-l andEq
         -- w' ≡ fromℕ≤ k k<n since toℕ w' ≡ k and toℕ (fromℕ≤ k k<n) ≡ k definitionally
         w'≡fk : w' ≡ fromℕ≤ k k<n
-        w'≡fk = Fin-fst-≡ w'≡k
+        w'≡fk = Fin-fst-≡ {n = n} w'≡k
     in subst (λ v → eval v A ≡ true) (sym w'≡fk)
          (→Bool-true (w ≤? fromℕ≤ k k<n) (eval (fromℕ≤ k k<n) A) checkTrue
            (subst (λ v → (w ≤? v) ≡ true) w'≡fk w≤w'))
   box-sem-step w A (suc k) sk≤n all□ w' w'<sk w≤w' | no w'≢k =
     -- w' has index < k, recurse
     let ih = and-true-r all□
-    in box-sem-step w A k (<-weaken sk≤n) ih w' (weaken-< w'<sk) w≤w'
-    where
-      -- weaken toℕ w' < suc k to toℕ w' < k (since w' ≢ k)
-      weaken-< : toℕ w' <ℕ suc k → toℕ w' <ℕ k
-      weaken-< (zero , p) = ⊥-rec (w'≢k (cong predℕ p))  -- suc (toℕ w') ≡ suc k implies toℕ w' ≡ k
-      weaken-< (suc m' , p) = m' , cong predℕ p  -- suc m' + suc (toℕ w') ≡ suc k implies m' + suc (toℕ w') ≡ k
+    in box-sem-step w A k (<ᵗ-trans-suc {n = k} {m = n} sk≤n) ih w' (dropLtSuc w'<sk w'≢k) w≤w'
 
   -- Main box semantics: if □A at w, then A at all w' ≥ w
   box-semantics : (w w' : World) (A : Formula)
@@ -377,18 +383,21 @@ module FiniteModelCore
                 → (w ≤? w') ≡ true
                 → eval w' A ≡ true
   box-semantics w w' A □A w≤w' =
-    let w'<n : toℕ w' <ℕ n
+    let w'<n : toℕW w' <ᵗ n
         w'<n = toℕ<n w'
-    in box-sem-step w A n (zero , refl) □A w' (toℕ<n w') w≤w'
+    in box-sem-step w A n (≤ᵗ-refl n) □A w' (toℕ<n w') w≤w'
 
   -- Diamond witness extraction: if ♢A at w, find v ≥ w with A
-  diamond-step : (w : World) (A : Formula) (k : ℕ) (k≤n : k ≤ℕ n)
+  diamond-step : (w : World) (A : Formula) (k : ℕ) (k≤n : k ≤ᵗ n)
                → eval-any♢-bounded w A k k≤n ≡ true
                → Σ World λ v → ((w ≤? v) ≡ true) × (eval v A ≡ true)
   diamond-step w A zero _ f≡t = ⊥-rec (false≢true f≡t)  -- base: false ≡ true is absurd
   diamond-step w A (suc k) sk≤n any♢ = helper check refl
     where
-      w' = fromℕ≤ k sk≤n
+      k<n : k <ᵗ n
+      k<n = sk≤n
+      w' : World
+      w' = fromℕ≤ k k<n
       check = (w ≤? w') and eval w' A
       helper : (b : Bool) → b ≡ check → Σ World λ v → ((w ≤? v) ≡ true) × (eval v A ≡ true)
       helper true eq =
@@ -397,87 +406,44 @@ module FiniteModelCore
         in (w' , w≤w' , Aw')
       helper false eq =
         -- This step didn't contribute, recurse
-        let rest = subst (λ b → (b or eval-any♢-bounded w A k (<-weaken sk≤n)) ≡ true)
+        let rest = subst (λ b → (b or eval-any♢-bounded w A k (<ᵗ-trans-suc {n = k} {m = n} k<n)) ≡ true)
                          (sym eq) any♢
-        in diamond-step w A k (<-weaken sk≤n) rest
+        in diamond-step w A k (<ᵗ-trans-suc {n = k} {m = n} k<n) rest
 
   diamond-semantics : (w : World) (A : Formula)
                     → eval w (♢ A) ≡ true
                     → Σ World λ v → ((w ≤? v) ≡ true) × (eval v A ≡ true)
-  diamond-semantics w A ♢A = diamond-step w A n (zero , refl) ♢A
+  diamond-semantics w A ♢A = diamond-step w A n (≤ᵗ-refl n) ♢A
 
   -- Box eigen: if A holds at all v ≥ w, then □A holds at w
-  box-eigen-step : (w : World) (A : Formula) (k : ℕ) (k≤n : k ≤ℕ n)
-                 → ((v : World) → toℕ v <ℕ k → (w ≤? v) ≡ true → eval v A ≡ true)
+  box-eigen-step : (w : World) (A : Formula) (k : ℕ) (k≤n : k ≤ᵗ n)
+                 → ((v : World) → toℕW v <ᵗ k → (w ≤? v) ≡ true → eval v A ≡ true)
                  → eval-all□-bounded w A k k≤n ≡ true
   box-eigen-step w A zero _ _ = refl
   box-eigen-step w A (suc k) sk≤n all = and-intro
-    (→Bool-intro (w ≤? fromℕ≤ k sk≤n) (eval (fromℕ≤ k sk≤n) A)
-      (λ w≤fk → all (fromℕ≤ k sk≤n) (subst (λ x → suc x ≤ℕ suc k) (sym (toℕ-fromℕ≤ k sk≤n)) (suc-≤-suc (zero , refl))) w≤fk))
-    (box-eigen-step w A k (<-weaken sk≤n) (λ v v<k w≤v → all v (<-trans v<k (suc-≤-suc (zero , refl))) w≤v))
+    (→Bool-intro (w ≤? fromℕ≤ k k<n) (eval (fromℕ≤ k k<n) A)
+      (λ w≤fk → all (fromℕ≤ k k<n)
+                     (subst (λ x → x <ᵗ suc k) (sym (toℕ-fromℕ≤ k k<n)) (<ᵗsucm {m = k}))
+                     w≤fk))
+    (box-eigen-step w A k (<ᵗ-trans-suc {n = k} {m = n} k<n)
+      (λ v v<k w≤v → all v (<ᵗ-trans-suc {n = toℕW v} {m = k} v<k) w≤v))
     where
-      -- Transitivity of < for naturals
-      -- a < b and b < c implies a < c
-      -- Using the definition: a <ℕ b = suc a ≤ℕ b = Σ k. k + suc a ≡ b
-      <-trans : {a b c : ℕ} → a <ℕ b → b <ℕ c → a <ℕ c
-      <-trans {a} {b} {c} (m , p) (n , q) = (suc (m + n)) , goal
-        where
-          -- p : m + suc a ≡ b, so suc (m + a) ≡ b
-          -- q : n + suc b ≡ c, so suc (n + b) ≡ c
-          -- Goal: suc (m + n) + suc a ≡ c
-          -- i.e., suc (suc (m + n) + a) ≡ c
-          -- i.e., suc (suc (m + n + a)) ≡ c
-          +-suc : (x y : ℕ) → x + suc y ≡ suc (x + y)
-          +-suc zero y = refl
-          +-suc (suc x) y = cong suc (+-suc x y)
-
-          +-assoc : (x y z : ℕ) → (x + y) + z ≡ x + (y + z)
-          +-assoc zero y z = refl
-          +-assoc (suc x) y z = cong suc (+-assoc x y z)
-
-          +-comm : (x y : ℕ) → x + y ≡ y + x
-          +-comm zero zero = refl
-          +-comm zero (suc y) = cong suc (+-comm zero y)
-          +-comm (suc x) zero = cong suc (+-comm x zero)
-          +-comm (suc x) (suc y) = cong suc (+-suc x y ∙ cong suc (+-comm x y) ∙ sym (+-suc y x))
-
-          -- Work through the chain:
-          -- suc (m + n) + suc a = suc (suc (m + n) + a) = suc (suc (m + n + a))
-          -- From p: b = m + suc a = suc (m + a)
-          -- From q: c = n + suc b = n + suc (suc (m + a)) = suc (n + suc (m + a)) = suc (suc (n + m + a))
-          step1 : suc (m + n) + suc a ≡ suc (suc (m + n + a))
-          step1 = +-suc (suc (m + n)) a ∙ cong suc (cong suc refl)
-
-          step2 : n + suc (suc (m + a)) ≡ c
-          step2 = cong (λ x → n + suc x) (sym (+-suc m a) ∙ p) ∙ q
-
-          step3 : suc (suc (n + (m + a))) ≡ c
-          step3 = cong suc (sym (+-suc n (m + a))) ∙ sym (+-suc n (suc (m + a))) ∙ step2
-
-          step4 : suc (suc (m + n + a)) ≡ suc (suc (n + (m + a)))
-          step4 = cong (λ x → suc (suc x))
-            (+-assoc m n a ∙ +-comm m (n + a) ∙ +-assoc n a m ∙ cong (n +_) (+-comm a m))
-
-          goal : suc (m + n) + suc a ≡ c
-          goal = step1 ∙ step4 ∙ step3
+      k<n : k <ᵗ n
+      k<n = sk≤n
 
   box-eigen-semantics : (w : World) (A : Formula)
                       → ((v : World) → (w ≤? v) ≡ true → eval v A ≡ true)
                       → eval w (□ A) ≡ true
-  box-eigen-semantics w A all = box-eigen-step w A n (zero , refl)
+  box-eigen-semantics w A all = box-eigen-step w A n (≤ᵗ-refl n)
     (λ v v<n w≤v → all v w≤v)
 
   -- Diamond introduction: if A holds at v ≥ w, then ♢A holds at w
-  diamond-intro-step : (w v : World) (A : Formula) (k : ℕ) (k≤n : k ≤ℕ n)
-                     → toℕ v <ℕ k
+  diamond-intro-step : (w v : World) (A : Formula) (k : ℕ) (k≤n : k ≤ᵗ n)
+                     → toℕW v <ᵗ k
                      → (w ≤? v) ≡ true → eval v A ≡ true
                      → eval-any♢-bounded w A k k≤n ≡ true
-  diamond-intro-step w v A zero _ (m , p) _ _ = ⊥-rec (snotz (sym (+-suc m (toℕ v)) ∙ p))
-    where
-      +-suc : (a b : ℕ) → a + suc b ≡ suc (a + b)
-      +-suc zero b = refl
-      +-suc (suc a) b = cong suc (+-suc a b)
-  diamond-intro-step w v A (suc k) sk≤n v<sk w≤v Av with toℕ v ≟ k
+  diamond-intro-step w v A zero _ () _ _
+  diamond-intro-step w v A (suc k) sk≤n v<sk w≤v Av with toℕW v ≟ k
     where
       _≟_ : (m n : ℕ) → Dec (m ≡ n)
       zero ≟ zero = yes refl
@@ -488,26 +454,26 @@ module FiniteModelCore
       ... | no ¬p = no (λ p → ¬p (cong predℕ p))
   ... | yes v≡k =
     -- v has index k, contribute here
-    let v≡fk : v ≡ fromℕ≤ k sk≤n
-        v≡fk = Fin-fst-≡ v≡k
+    let k<n : k <ᵗ n
+        k<n = sk≤n
+        v≡fk : v ≡ fromℕ≤ k k<n
+        v≡fk = Fin-fst-≡ {n = n} v≡k
         checkTrue = and-intro
                       (subst (λ x → (w ≤? x) ≡ true) v≡fk w≤v)
                       (subst (λ x → eval x A ≡ true) v≡fk Av)
     in or-true-intro-l checkTrue
   ... | no v≢k =
     -- v has index < k, recurse
-    or-true-intro-r (diamond-intro-step w v A k (<-weaken sk≤n) (weaken-< v<sk) w≤v Av)
-    where
-      -- weaken toℕ v < suc k to toℕ v < k (since v ≢ k)
-      weaken-< : toℕ v <ℕ suc k → toℕ v <ℕ k
-      weaken-< (zero , p) = ⊥-rec (v≢k (cong predℕ p))  -- suc (toℕ v) ≡ suc k implies toℕ v ≡ k
-      weaken-< (suc m' , p) = m' , cong predℕ p  -- suc m' + suc (toℕ v) ≡ suc k implies m' + suc (toℕ v) ≡ k
+    let k<n : k <ᵗ n
+        k<n = sk≤n
+    in or-true-intro-r
+         (diamond-intro-step w v A k (<ᵗ-trans-suc {n = k} {m = n} k<n) (dropLtSuc v<sk v≢k) w≤v Av)
 
   diamond-intro-semantics : (w v : World) (A : Formula)
                           → (w ≤? v) ≡ true → eval v A ≡ true
                           → eval w (♢ A) ≡ true
   diamond-intro-semantics w v A w≤v Av =
-    diamond-intro-step w v A n (zero , refl) (toℕ<n v) w≤v Av
+    diamond-intro-step w v A n (≤ᵗ-refl n) (toℕ<n v) w≤v Av
 
 -- =============================================================================
 -- FiniteModel Record - Bundles parameters for external interface

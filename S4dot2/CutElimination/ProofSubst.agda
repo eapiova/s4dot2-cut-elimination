@@ -5,7 +5,7 @@ module S4dot2.CutElimination.ProofSubst where
 open import Cubical.Foundations.Prelude hiding (_∧_; _∨_)
 open import Cubical.Data.List hiding ([_]) renaming (_++_ to _++L_)
 open import Cubical.Data.List.Properties renaming (++-assoc to ++L-assoc)
-open import Cubical.Data.Nat using (ℕ; zero; suc; max; _+_)
+open import Cubical.Data.Nat using (ℕ; zero; suc; max; _+_; discreteℕ)
 open import Cubical.Data.Nat.Order using (_≤_; _<_; _>_; ≤-refl; zero-≤; suc-≤-suc; pred-≤-pred; ≤-trans; ≤0→≡0; ¬-<-zero; <→≢; isProp≤; <-trans; <-weaken)
 open import Cubical.Data.Sigma
 open import Cubical.Data.Sum using (_⊎_; inl; inr)
@@ -178,6 +178,37 @@ mem-++Pos-r {s} {t} {x} = merge-∈Pos-r x s t
 
 remove-++Pos-distrib : (x : Token) (s t : Position) → remove x (s ++Pos t) ≡ remove x s ++Pos remove x t
 remove-++Pos-distrib = remove-merge-distrib
+
+remove-singleton-self : ∀ y → remove y (singleton-pos y) ≡ ε
+remove-singleton-self y with discreteℕ y y
+... | yes _ = refl
+... | no y≢y = ⊥-rec (y≢y refl)
+
+substPos-roundtrip : ∀ x y s → y ∉Pos s
+  → substPos y (singleton-pos x) (substPos x (singleton-pos y) s) ≡ s
+substPos-roundtrip x y s y∉s with x ∈Pos? s
+substPos-roundtrip x y s y∉s | no x∉s with y ∈Pos? (substPos x (singleton-pos y) s)
+... | yes y∈inner =
+  let y∈s : y ∈Pos s
+      y∈s = subst (y ∈Pos_) (substPos-id x (singleton-pos y) s x∉s) y∈inner
+  in ⊥-rec (y∉s y∈s)
+... | no _ = substPos-id y (singleton-pos x) s y∉s
+substPos-roundtrip x y s y∉s | yes xIn with y ∈Pos? ((remove x s) ++Pos singleton-pos y)
+... | no y∉inner = ⊥-rec (y∉inner (mem-++Pos-r {remove x s} {singleton-pos y} (inl refl)))
+... | yes _ =
+      cong (_++Pos singleton-pos x) (remove-++Pos-distrib y (remove x s) (singleton-pos y))
+      ∙ cong (λ r → (r ++Pos remove y (singleton-pos y)) ++Pos singleton-pos x)
+             (remove-∉Pos-id y (remove x s) (∉Pos-remove x s y∉s))
+      ∙ cong (λ r → (remove x s ++Pos r) ++Pos singleton-pos x) (remove-singleton-self y)
+      ∙ cong (_++Pos singleton-pos x) (merge-ε-r (remove x s))
+      ∙ insertToken-remove-cancel x s xIn
+
+substCtx-roundtrip : ∀ x y Γ → TokenFresh y Γ
+  → substCtx y (singleton-pos x) (substCtx x (singleton-pos y) Γ) ≡ Γ
+substCtx-roundtrip x y [] _ = refl
+substCtx-roundtrip x y ((A ^ s) ∷ Γ) (y∉s , yFrΓ) =
+  cong₂ _∷_ (cong (A ^_) (substPos-roundtrip x y s y∉s))
+            (substCtx-roundtrip x y Γ yFrΓ)
 
 substPos-++Pos-distr : (x : Token) (t s r : Position) → substPos x t (s ++Pos r) ≡ substPos x t s ++Pos substPos x t r
 substPos-++Pos-distr x t s r with x ∈Pos? (s ++Pos r) | x ∈Pos? s | x ∈Pos? r
