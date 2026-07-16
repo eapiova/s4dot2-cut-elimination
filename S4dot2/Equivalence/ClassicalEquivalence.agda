@@ -1,7 +1,7 @@
 {-# OPTIONS --cubical --safe #-}
 
 -- Classical equivalences for S4.2
--- Derives Hilbert ↔ Sequent equivalence (at ε), Hilbert finite soundness,
+-- Derives Hilbert ↔ Sequent equivalence (at ∅), Hilbert finite soundness,
 -- and the Finite Model Property from two classical assumptions
 -- (segerberg-FMP + decidable-⊢S4dot2).
 
@@ -86,22 +86,22 @@ module Classical
   -- Derived theorems
   -- =============================================================================
 
-  -- Sequent provability at ε implies Hilbert provability.
+  -- Sequent provability at ∅ implies Hilbert provability.
   -- Proof: finiteSoundness gives A true at m M for every finite model,
   -- then hilbert-FMP gives ⊢S4dot2 A.
-  seq→hilbert : ∀ {A} → [] ⊢ [ A ^ ε ] → ⊢S4dot2 A
+  seq→hilbert : ∀ {A} → [] ⊢ [ A ^ ∅ ] → ⊢S4dot2 A
   seq→hilbert {A} d = hilbert-FMP λ M ms →
     extract M (finiteSoundness d M ms (λ _ → m M) (λ _ ()))
     where
-      extract : ∀ M → M , (λ _ → m M) ⊩Succᶠ [ A ^ ε ] → eval M (m M) A ≡ true
+      extract : ∀ M → M , (λ _ → m M) ⊩Succᶠ [ A ^ ∅ ] → eval M (m M) A ≡ true
       extract M (_ , here , sat) = sat
 
-  -- Hilbert provability ↔ sequent provability at ε.
-  hilbert-sequent-equiv : ∀ {A} → (⊢S4dot2 A → [] ⊢ [ A ^ ε ]) × ([] ⊢ [ A ^ ε ] → ⊢S4dot2 A)
+  -- Hilbert provability ↔ sequent provability at ∅.
+  hilbert-sequent-equiv : ∀ {A} → (⊢S4dot2 A → [] ⊢ [ A ^ ∅ ]) × ([] ⊢ [ A ^ ∅ ] → ⊢S4dot2 A)
   hilbert-sequent-equiv = completeness , seq→hilbert
 
   -- Hilbert provability implies finite model soundness.
   hilbert-finite-soundness : ∀ {A} → ⊢S4dot2 A
     → (M : FiniteModel) → (ms : ModalSemantics M) → (ρ : FiniteInterpretation M)
-    → M , ρ ⊩Succᶠ [ A ^ ε ]
+    → M , ρ ⊩Succᶠ [ A ^ ∅ ]
   hilbert-finite-soundness h M ms ρ = finiteSoundness (completeness h) M ms ρ (λ _ ())

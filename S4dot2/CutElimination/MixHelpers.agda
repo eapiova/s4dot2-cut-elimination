@@ -69,7 +69,7 @@ subset-needs-token {x} {s} {r} {t} x∉t sub = x∉t (sub x x∈merged)
   where
     -- x is in singleton-pos x
     x∈singleton : x ∈Pos (singleton-pos x)
-    x∈singleton = insertToken-∈Pos x x ε (inl refl)
+    x∈singleton = insertToken-∈Pos x x ∅ (inl refl)
     -- x is in s ∘ singleton-pos x (right component of merge)
     x∈s∘singleton : x ∈Pos (s ∘ singleton-pos x)
     x∈s∘singleton = merge-∈Pos-r x s (singleton-pos x) x∈singleton
@@ -100,7 +100,7 @@ TokenFresh→IsEigenposition : ∀ {s : Position} {x : Token} {Γ Δ : Ctx}
   → IsEigenposition s x Γ Δ
 TokenFresh→IsEigenposition {s} {x} {Γ} {Δ} fresh (pf , pf∈ , sub) =
   let x∈singleton : x ∈Pos (singleton-pos x)
-      x∈singleton = insertToken-∈Pos x x ε (inl refl)
+      x∈singleton = insertToken-∈Pos x x ∅ (inl refl)
       x∈merged : x ∈Pos (s ∘ singleton-pos x)
       x∈merged = merge-∈Pos-r x s (singleton-pos x) x∈singleton
       x∈pf : x ∈Pos (PFormula.pos pf)

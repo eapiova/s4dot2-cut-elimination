@@ -30,7 +30,7 @@ _>ℕ_ = _>_
 
 -- Import the SDL module instantiated with ℕ and _>_
 open import Cubical.Data.DescendingList.Strict ℕ _>ℕ_ public
-  renaming (SDL to Position; [] to ε; cons to pos-cons)
+  renaming (SDL to Position; [] to ∅; cons to pos-cons)
 
 -- Import properties module
 import Cubical.Data.DescendingList.Strict.Properties as SDLPropsModule
@@ -73,11 +73,11 @@ open SDLProps.IsoToLFSet discreteℕ >-isProp triℕ >-trans >-irreflexive publi
 
 -- Singleton position
 [_] : Token → Position
-[ x ] = pos-cons x ε >ᴴ[]
+[ x ] = pos-cons x ∅ >ᴴ[]
 
 -- Direct membership
 _∈Pos_ : Token → Position → Type₀
-x ∈Pos ε = ⊥.⊥
+x ∈Pos ∅ = ⊥.⊥
 x ∈Pos (pos-cons y ys _) = (x ≡ y) ⊎ (x ∈Pos ys)
 
 _∉Pos_ : Token → Position → Type₀
@@ -85,7 +85,7 @@ x ∉Pos s = Type¬ (x ∈Pos s)
 
 -- Decidable membership
 _∈Pos?_ : (x : Token) → (s : Position) → Dec (x ∈Pos s)
-x ∈Pos? ε = no (λ ())
+x ∈Pos? ∅ = no (λ ())
 x ∈Pos? (pos-cons y ys _) with discreteℕ x y
 ... | yes x≡y = yes (inl x≡y)
 ... | no x≢y with x ∈Pos? ys
@@ -96,12 +96,12 @@ x ∈Pos? (pos-cons y ys _) with discreteℕ x y
 -- Note: Semantically equivalent to DLProps._++ᴰᴸ_ but defined recursively
 -- for computational behavior (pattern matching, decidability)
 merge : Position → Position → Position
-merge ε t = t
+merge ∅ t = t
 merge (pos-cons x xs x>xs) t = insertToken x (merge xs t)
 
 -- Helper: unsortTokens (merge s t) ≡ unsortTokens s ++ unsortTokens t
 unsort-merge : ∀ s t → unsortTokens (merge s t) ≡ unsortTokens s LFSet.++ unsortTokens t
-unsort-merge ε t = refl
+unsort-merge ∅ t = refl
 unsort-merge (pos-cons x xs x>xs) t =
   insert-correct x (merge xs t) ∙ cong (x LFSet.∷_) (unsort-merge xs t)
 
@@ -112,7 +112,7 @@ merge-comm s t = position-inj (merge s t) (merge t s)
 
 -- Remove a single token
 remove : Token → Position → Position
-remove x ε = ε
+remove x ∅ = ∅
 remove x (pos-cons y ys y>ys) with discreteℕ x y
 ... | yes _ = ys
 ... | no _ = insertToken y (remove x ys)
@@ -124,7 +124,7 @@ substTokenPos x t s = merge (remove x s) t
 -- Helper: unsortTokens (remove x s) ≡ unsortTokens s when x ∉Pos s
 -- (removing a non-existent element is identity for LFSet semantics)
 unsort-remove-not-in : ∀ x s → x ∉Pos s → unsortTokens (remove x s) ≡ unsortTokens s
-unsort-remove-not-in x ε x∉s = refl
+unsort-remove-not-in x ∅ x∉s = refl
 unsort-remove-not-in x (pos-cons y ys y>ys) x∉s with discreteℕ x y
 ... | yes x≡y = ⊥.rec (x∉s (inl x≡y))
 ... | no x≢y =
@@ -139,7 +139,7 @@ remove-insertToken x s x∉s = position-inj (remove x (insertToken x s)) s goal
   goal = aux s x∉s
     where
     aux : ∀ r → x ∉Pos r → unsortTokens (remove x (insertToken x r)) ≡ unsortTokens r
-    aux ε _ with discreteℕ x x
+    aux ∅ _ with discreteℕ x x
     ... | yes _ = refl
     ... | no x≢x = ⊥.rec (x≢x refl)
 
@@ -168,11 +168,11 @@ substTokenPos-insert x s t x∉s =
 -- When x ≡ z (tri-≡): duplicate, result is (z ∷ zs), so mem type is (y ≡ z) ⊎ (y ∈Pos zs)
 -- When x > z (tri->): x goes at head, result is (x ∷ z ∷ zs), so mem type is (y ≡ x) ⊎ ((y ≡ z) ⊎ (y ∈Pos zs))
 ∈Pos-insertToken : ∀ x y s → y ∈Pos (insertToken x s) → (y ≡ x) ⊎ (y ∈Pos s)
-∈Pos-insertToken x y ε mem with triℕ x x
+∈Pos-insertToken x y ∅ mem with triℕ x x
 ... | tri-≡ _ _ _ with mem
 ...   | inl y≡x = inl y≡x
-∈Pos-insertToken x y ε mem | tri-< x>x _ _ = ⊥.rec {A = (y ≡ x) ⊎ (y ∈Pos ε)} (>-irreflexive x>x)
-∈Pos-insertToken x y ε mem | tri-> _ _ x>x = ⊥.rec {A = (y ≡ x) ⊎ (y ∈Pos ε)} (>-irreflexive x>x)
+∈Pos-insertToken x y ∅ mem | tri-< x>x _ _ = ⊥.rec {A = (y ≡ x) ⊎ (y ∈Pos ∅)} (>-irreflexive x>x)
+∈Pos-insertToken x y ∅ mem | tri-> _ _ x>x = ⊥.rec {A = (y ≡ x) ⊎ (y ∈Pos ∅)} (>-irreflexive x>x)
 ∈Pos-insertToken x y (pos-cons z zs z>zs) mem with triℕ x z
 -- Case tri-< z>x: z > x, so result is pos-cons z (insertToken x zs), mem : (y ≡ z) ⊎ (y ∈Pos (insertToken x zs))
 ∈Pos-insertToken x y (pos-cons z zs z>zs) mem | tri-< z>x _ _ with mem
@@ -192,11 +192,11 @@ substTokenPos-insert x s t x∉s =
 
 -- Helper: membership into insertToken
 insertToken-∈Pos : ∀ x y s → (y ≡ x) ⊎ (y ∈Pos s) → y ∈Pos (insertToken x s)
-insertToken-∈Pos x y ε (inl y≡x) with triℕ x x
+insertToken-∈Pos x y ∅ (inl y≡x) with triℕ x x
 ... | tri-≡ _ _ _ = inl y≡x
-... | tri-< x>x _ _ = ⊥.rec {A = y ∈Pos (insertToken x ε)} (>-irreflexive x>x)
-... | tri-> _ _ x>x = ⊥.rec {A = y ∈Pos (insertToken x ε)} (>-irreflexive x>x)
-insertToken-∈Pos x y ε (inr ())
+... | tri-< x>x _ _ = ⊥.rec {A = y ∈Pos (insertToken x ∅)} (>-irreflexive x>x)
+... | tri-> _ _ x>x = ⊥.rec {A = y ∈Pos (insertToken x ∅)} (>-irreflexive x>x)
+insertToken-∈Pos x y ∅ (inr ())
 insertToken-∈Pos x y (pos-cons z zs z>zs) choice with triℕ x z
 -- Case tri-< z>x: z > x, result is pos-cons z (insertToken x zs)
 insertToken-∈Pos x y (pos-cons z zs z>zs) (inl y≡x) | tri-< z>x _ _ = inr (insertToken-∈Pos x y zs (inl y≡x))
@@ -223,7 +223,7 @@ insertToken-∈Pos x y (pos-cons z zs z>zs) (inr (inr y∈zs)) | tri-> _ _ x>z =
 
 -- Helper: the head of an SDL is not in the tail (follows from strict ordering)
 head-∉Pos-tail : ∀ y ys → (y>ys : y >ᴴ ys) → y ∉Pos ys
-head-∉Pos-tail y ε _ ()
+head-∉Pos-tail y ∅ _ ()
 head-∉Pos-tail y (pos-cons z zs z>zs) (>ᴴcons y>z) (inl y≡z) =
   >-irreflexive (subst (y >ℕ_) (sym y≡z) y>z)
 head-∉Pos-tail y (pos-cons z zs z>zs) (>ᴴcons y>z) (inr y∈zs) =
@@ -231,7 +231,7 @@ head-∉Pos-tail y (pos-cons z zs z>zs) (>ᴴcons y>z) (inr y∈zs) =
 
 -- If t ∈ remove x s, then t ∈ s
 remove-∈Pos : ∀ x t s → t ∈Pos (remove x s) → t ∈Pos s
-remove-∈Pos x t ε ()
+remove-∈Pos x t ∅ ()
 remove-∈Pos x t (pos-cons y ys y>ys) t∈rem with discreteℕ x y
 ... | yes x≡y = inr t∈rem  -- remove x (y∷ys) = ys when x≡y, so t∈ys
 ... | no x≢y with ∈Pos-insertToken y t (remove x ys) t∈rem
@@ -240,7 +240,7 @@ remove-∈Pos x t (pos-cons y ys y>ys) t∈rem with discreteℕ x y
 
 -- If t ∈ remove x s, then x ≢ t
 remove-∈Pos-neq : ∀ x t s → t ∈Pos (remove x s) → (x ≡ t → ⊥.⊥)
-remove-∈Pos-neq x t ε () _
+remove-∈Pos-neq x t ∅ () _
 remove-∈Pos-neq x t (pos-cons y ys y>ys) t∈rem x≡t with discreteℕ x y
 remove-∈Pos-neq x t (pos-cons y ys y>ys) t∈rem x≡t | yes x≡y =
   -- remove x (y∷ys) = ys, and t ∈ ys
@@ -255,7 +255,7 @@ remove-∈Pos-neq x t (pos-cons y ys y>ys) t∈rem x≡t | no x≢y
 
 -- If t ∈ s and x ≢ t, then t ∈ remove x s
 ∈Pos-remove : ∀ x t s → t ∈Pos s → (x ≡ t → ⊥.⊥) → t ∈Pos (remove x s)
-∈Pos-remove x t ε () _
+∈Pos-remove x t ∅ () _
 ∈Pos-remove x t (pos-cons y ys y>ys) (inl t≡y) x≢t with discreteℕ x y
 ... | yes x≡y = ⊥.rec (x≢t (x≡y ∙ sym t≡y))  -- x≡y and t≡y means x≡t, contradiction
 ... | no x≢y = insertToken-∈Pos y t (remove x ys) (inl t≡y)
@@ -277,7 +277,7 @@ s ⊑ t = ∀ y → y ∈Pos s → y ∈Pos t
 
 -- Decidable subset
 _⊑?_ : (s t : Position) → Dec (s ⊑ t)
-ε ⊑? t = yes (λ _ ())
+∅ ⊑? t = yes (λ _ ())
 pos-cons x xs x>xs ⊑? t with x ∈Pos? t
 ... | no x∉t = no (λ sub → x∉t (sub x (inl refl)))
 ... | yes x∈t with xs ⊑? t
@@ -289,13 +289,13 @@ pos-cons x xs x>xs ⊑? t with x ∈Pos? t
 -- Merge properties
 -- =============================================================================
 
--- merge with ε is identity (left)
-merge-ε-l : ∀ s → merge ε s ≡ s
-merge-ε-l s = refl
+-- merge with ∅ is identity (left)
+merge-∅-l : ∀ s → merge ∅ s ≡ s
+merge-∅-l s = refl
 
 -- Membership in merge
 ∈Pos-merge : ∀ x s t → x ∈Pos (merge s t) → (x ∈Pos s) ⊎ (x ∈Pos t)
-∈Pos-merge x ε t mem = inr mem
+∈Pos-merge x ∅ t mem = inr mem
 ∈Pos-merge x (pos-cons y ys y>ys) t mem with ∈Pos-insertToken y x (merge ys t) mem
 ... | inl x≡y = inl (inl x≡y)
 ... | inr x∈merge with ∈Pos-merge x ys t x∈merge
@@ -311,15 +311,15 @@ merge-∈Pos-l x (pos-cons y ys y>ys) t (inr x∈ys) =
 
 -- Membership into merge (right)
 merge-∈Pos-r : ∀ x s t → x ∈Pos t → x ∈Pos (merge s t)
-merge-∈Pos-r x ε t mem = mem
+merge-∈Pos-r x ∅ t mem = mem
 merge-∈Pos-r x (pos-cons y ys y>ys) t mem =
   insertToken-∈Pos y x (merge ys t) (inr (merge-∈Pos-r x ys t mem))
 
--- merge with ε is identity (right) - via LFSet
-merge-ε-r : ∀ s → merge s ε ≡ s
-merge-ε-r ε = refl
-merge-ε-r (pos-cons x xs x>xs) = position-inj (merge (pos-cons x xs x>xs) ε) (pos-cons x xs x>xs)
-  (unsort-merge (pos-cons x xs x>xs) ε ∙ comm-++-[] (unsortTokens (pos-cons x xs x>xs)))
+-- merge with ∅ is identity (right) - via LFSet
+merge-∅-r : ∀ s → merge s ∅ ≡ s
+merge-∅-r ∅ = refl
+merge-∅-r (pos-cons x xs x>xs) = position-inj (merge (pos-cons x xs x>xs) ∅) (pos-cons x xs x>xs)
+  (unsort-merge (pos-cons x xs x>xs) ∅ ∙ comm-++-[] (unsortTokens (pos-cons x xs x>xs)))
 
 -- merge is associative (via LFSet)
 merge-assoc : ∀ s t r → merge (merge s t) r ≡ merge s (merge t r)
@@ -334,7 +334,7 @@ merge-assoc s t r = position-inj (merge (merge s t) r) (merge s (merge t r))
 merge-singleton : ∀ s x → merge s [ x ] ≡ insertToken x s
 merge-singleton s x = position-inj (merge s [ x ]) (insertToken x s)
   (unsort-merge s [ x ] ∙
-   cong (unsortTokens s LFSet.++_) (insert-correct x ε) ∙
+   cong (unsortTokens s LFSet.++_) (insert-correct x ∅) ∙
    comm-++ (unsortTokens s) (x LFSet.∷ LFSet.[]) ∙
    sym (insert-correct x s))
 
@@ -368,12 +368,12 @@ merge-⊑-mono {s} {s'} {t} {t'} s⊑s' t⊑t' y y∈merge with ∈Pos-merge y s
 
 -- Convert Position to List (forgetting sorted property)
 toList : Position → List Token
-toList ε = []
+toList ∅ = []
 toList (pos-cons x xs _) = x ∷ toList xs
 
 -- Build Position from unsorted list by repeated insertion
 fromTokenList : List Token → Position
-fromTokenList [] = ε
+fromTokenList [] = ∅
 fromTokenList (x ∷ xs) = insertToken x (fromTokenList xs)
 
 -- Membership in List
@@ -397,7 +397,7 @@ toList-∈ x (pos-cons y ys _) (inr x∈ys) = there (toList-∈ x ys x∈ys)
 
 -- Non-membership is preserved by remove (removing elements can't add new ones)
 ∉Pos-remove : ∀ {x} z s → x ∉Pos s → x ∉Pos (remove z s)
-∉Pos-remove z ε x∉s ()
+∉Pos-remove z ∅ x∉s ()
 ∉Pos-remove {x} z (pos-cons y ys y>ys) x∉s x∈rem with discreteℕ z y
 ... | yes z≡y = x∉s (inr x∈rem)  -- remove z (y∷ys) = ys when z≡y
 ... | no z≢y with ∈Pos-insertToken y x (remove z ys) x∈rem
@@ -413,12 +413,12 @@ toList-∈ x (pos-cons y ys _) (inr x∈ys) = there (toList-∈ x ys x∈ys)
 -- When z ≢ x: remove z (insertToken x s) ≡ insertToken x (remove z s)
 -- (removing z from s∪{x} equals {x} ∪ (removing z from s) when z≠x)
 remove-insertToken-neq : ∀ z x s → (z ≡ x → ⊥.⊥) → remove z (insertToken x s) ≡ insertToken x (remove z s)
-remove-insertToken-neq z x ε z≢x with triℕ x x
+remove-insertToken-neq z x ∅ z≢x with triℕ x x
 ... | tri-≡ _ _ _ with discreteℕ z x
 ...   | yes z≡x = ⊥.rec (z≢x z≡x)
 ...   | no _ = refl
-remove-insertToken-neq z x ε z≢x | tri-< x>x _ _ = ⊥.rec (>-irreflexive x>x)
-remove-insertToken-neq z x ε z≢x | tri-> _ _ x>x = ⊥.rec (>-irreflexive x>x)
+remove-insertToken-neq z x ∅ z≢x | tri-< x>x _ _ = ⊥.rec (>-irreflexive x>x)
+remove-insertToken-neq z x ∅ z≢x | tri-> _ _ x>x = ⊥.rec (>-irreflexive x>x)
 remove-insertToken-neq z x (pos-cons y ys y>ys) z≢x with triℕ x y
 -- Case y > x: insertToken x (y∷ys) = y ∷ (insertToken x ys)
 remove-insertToken-neq z x (pos-cons y ys y>ys) z≢x | tri-< y>x _ _ with discreteℕ z y
@@ -445,7 +445,7 @@ remove-insertToken-neq z x (pos-cons y ys y>ys) z≢x | tri-> _ _ x>y with discr
 -- merge (insertToken x s) t ≡ insertToken x (merge s t)
 -- This is (s∪{x})∪t = {x}∪(s∪t), which holds unconditionally for sets
 merge-insertToken-l : ∀ x s t → merge (insertToken x s) t ≡ insertToken x (merge s t)
-merge-insertToken-l x ε t = refl  -- insertToken x ε = [x], merge [x] t = insertToken x t
+merge-insertToken-l x ∅ t = refl  -- insertToken x ∅ = [x], merge [x] t = insertToken x t
 merge-insertToken-l x (pos-cons y ys y>ys) t with triℕ x y
 -- Case y > x: insertToken x (y∷ys) = y ∷ (insertToken x ys)
 -- LHS: merge (y ∷ insertToken x ys) t = insertToken y (merge (insertToken x ys) t)
@@ -476,7 +476,7 @@ insertToken-cons z zs z>zs = position-inj (insertToken z zs) (pos-cons z zs z>zs
 
 -- If x ∈Pos s, removing x and then adding it back recovers s.
 insertToken-remove-cancel' : ∀ x s → x ∈Pos s → insertToken x (remove x s) ≡ s
-insertToken-remove-cancel' x ε ()
+insertToken-remove-cancel' x ∅ ()
 insertToken-remove-cancel' x (pos-cons y ys y>ys) x∈s with discreteℕ x y
 ... | yes x≡y =
   position-inj (insertToken x ys) (pos-cons y ys y>ys)
@@ -509,7 +509,7 @@ insertToken-∈Pos-id x s x∈s = position-inj (insertToken x s) s
 
     -- Key lemma: if x ∈ s, then x ∷ unsort s ≡ unsort s (via LFSet dup path)
     ∈→dup : ∀ x t → x ∈Pos t → x LFSet.∷ unsortTokens t ≡ unsortTokens t
-    ∈→dup x ε ()
+    ∈→dup x ∅ ()
     ∈→dup x (pos-cons y ys y>ys) (inl x≡y) =
       -- x ≡ y, so x ∷ (y ∷ unsort ys) ≡ y ∷ unsort ys
       -- By LFSet.dup: y ∷ y ∷ xs ≡ y ∷ xs
@@ -539,12 +539,12 @@ insertToken-∈Pos-id x s x∈s = position-inj (insertToken x s) s
 -- Helper: remove y (insertToken y r) ≡ remove y r
 -- Whether y is in r or not, inserting and then removing y is the same as just removing y
 remove-insertToken-same : ∀ y r → remove y (insertToken y r) ≡ remove y r
-remove-insertToken-same y ε with triℕ y y
+remove-insertToken-same y ∅ with triℕ y y
 ... | tri-≡ _ _ _ with discreteℕ y y
 ...   | yes _ = refl
 ...   | no y≢y = ⊥.rec (y≢y refl)
-remove-insertToken-same y ε | tri-< y>y _ _ = ⊥.rec (>-irreflexive y>y)
-remove-insertToken-same y ε | tri-> _ _ y>y = ⊥.rec (>-irreflexive y>y)
+remove-insertToken-same y ∅ | tri-< y>y _ _ = ⊥.rec (>-irreflexive y>y)
+remove-insertToken-same y ∅ | tri-> _ _ y>y = ⊥.rec (>-irreflexive y>y)
 remove-insertToken-same y (pos-cons z zs z>zs) with triℕ y z
 -- Case z > y: insertToken y (z∷zs) = z ∷ (insertToken y zs)
 remove-insertToken-same y (pos-cons z zs z>zs) | tri-< z>y _ _ with discreteℕ y z
@@ -572,7 +572,7 @@ remove-insertToken-same y (pos-cons z zs z>zs) | tri-> _ _ y>z | no y≢y = ⊥.
 
 -- Remove distributes over merge: (s ∪ t) \ {x} = (s \ {x}) ∪ (t \ {x})
 remove-merge-distrib : ∀ x s t → remove x (merge s t) ≡ merge (remove x s) (remove x t)
-remove-merge-distrib x ε t = refl
+remove-merge-distrib x ∅ t = refl
 remove-merge-distrib x (pos-cons y ys y>ys) t with discreteℕ x y
 -- Case x ≡ y: remove from head
 -- LHS: remove x (insertToken y (merge ys t))
@@ -620,7 +620,7 @@ merge-idem s = position-inj (merge s s) s (unsort-merge s s ∙ LFSet.idem-++ (u
 
 -- Helper: if s ⊑ t, then merge s t ≡ t (s adds nothing new)
 merge-absorb-⊑ : ∀ s t → s ⊑ t → merge s t ≡ t
-merge-absorb-⊑ ε t _ = refl
+merge-absorb-⊑ ∅ t _ = refl
 merge-absorb-⊑ (pos-cons x xs x>xs) t s⊑t =
   -- merge (x∷xs) t = insertToken x (merge xs t)
   -- Since x ∈ t (from s⊑t), and xs ⊑ t (from s⊑t), we have merge xs t ≡ t by IH

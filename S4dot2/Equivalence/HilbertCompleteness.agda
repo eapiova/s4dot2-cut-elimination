@@ -1,7 +1,7 @@
 {-# OPTIONS --cubical --safe #-}
 
 -- Weak completeness for S4.2 modal logic with positions.
--- Proves: if ⊢S4dot2 A then [] ⊢ [ A ^ ε ]
+-- Proves: if ⊢S4dot2 A then [] ⊢ [ A ^ ∅ ]
 
 module S4dot2.Equivalence.HilbertCompleteness where
 
@@ -93,8 +93,8 @@ TokenFresh-[] = tt
 1≢0 : 1 ≢ 0
 1≢0 eq = subst (λ { ℕ.zero → ⊥ ; (ℕ.suc _) → Unit }) eq tt
 
--- Helper: 1 is not in (singleton-pos 0) = pos-cons 0 ε _
--- 1 ∈Pos (pos-cons 0 ε _) = (1 ≡ 0) ⊎ (1 ∈Pos ε) = (1 ≡ 0) ⊎ ⊥
+-- Helper: 1 is not in (singleton-pos 0) = pos-cons 0 ∅ _
+-- 1 ∈Pos (pos-cons 0 ∅ _) = (1 ≡ 0) ⊎ (1 ∈Pos ∅) = (1 ≡ 0) ⊎ ⊥
 1∉singleton0 : 1 ∉Pos (singleton-pos 0)
 1∉singleton0 (inl 1≡0) = 1≢0 1≡0
 1∉singleton0 (inr ())
@@ -119,7 +119,7 @@ mkSingleTokenExt s x x∉s = (sub , x-in , x∉s , uniq)
     ... | inl t∈s = ⊥.rec (t∉s t∈s)
     ... | inr t∈singleton with t∈singleton
     ...   | inl t≡x = t≡x
-    ...   | inr t∈ε = ⊥.rec t∈ε
+    ...   | inr t∈∅ = ⊥.rec t∈∅
 
 -- TokenFresh for context with positions
 -- Constructs TokenFresh x Γ when we can show x doesn't appear in any position in Γ
@@ -784,13 +784,13 @@ id-seq = Ax
 --   Result: [A^t, (A⇒B)^t] ⊢ [B^t]
 
 -- Axiom K specialized to empty position for weak completeness
-derive-K : ∀ {A B : Formula} → [] ⊢ [ (□ (A ⇒ B) ⇒ (□ A ⇒ □ B)) ^ ε ]
+derive-K : ∀ {A B : Formula} → [] ⊢ [ (□ (A ⇒ B) ⇒ (□ A ⇒ □ B)) ^ ∅ ]
 derive-K {A} {B} =
   let s : Position
-      s = ε
+      s = ∅
 
       t : Position
-      t = singleton-pos 0  -- s ∘ singleton-pos 0 = ε ∘ [0] = [0]
+      t = singleton-pos 0  -- s ∘ singleton-pos 0 = ∅ ∘ [0] = [0]
 
       -- Equality for converting between t and insertToken 0 s
       t≡insert : t ≡ insertToken 0 s
@@ -799,7 +799,7 @@ derive-K {A} {B} =
       -- 0 is trivially fresh for empty position
       fresh-s : 0 ∉Pos s
       fresh-s = λ ()
-      -- TokenFresh for contexts with position s = ε
+      -- TokenFresh for contexts with position s = ∅
       freshΓ-2 : TokenFresh 0 (((□ (A ⇒ B)) ^ s) ∷ ((□ A) ^ s) ∷ [])
       freshΓ-2 = TokenFresh-cons {x = 0} {A = □ (A ⇒ B)} {s = s} {Γ = ((□ A) ^ s) ∷ []} fresh-s (TokenFresh-singleton {x = 0} {A = □ A} {s = s} fresh-s)
 
@@ -853,19 +853,19 @@ derive-D : ∀ {A : Formula} {s : Position} → [] ⊢ [ (□ A ⇒ ♢ A) ^ s ]
 derive-D {A} {s} =
   let
     -- Ax gives: [ A ^ s ] ⊢ [ A ^ s ]
-    -- □⊢ {t = ε} expects LHS: [ A ^ (s ∘ ε) ] and keeps RHS unchanged
-    -- ⊢♢ {t = ε} expects RHS: [ A ^ (s ∘ ε) ] and keeps LHS unchanged
-    -- So we need both sides to be [ A ^ (s ∘ ε) ]
-    ax-subst : [ A ^ (s ∘ ε) ] ⊢ [ A ^ (s ∘ ε) ]
-    ax-subst = subst (λ pos → [ A ^ pos ] ⊢ [ A ^ pos ]) (sym (merge-ε-r s)) (Ax {A = A} {s = s})
+    -- □⊢ {t = ∅} expects LHS: [ A ^ (s ∘ ∅) ] and keeps RHS unchanged
+    -- ⊢♢ {t = ∅} expects RHS: [ A ^ (s ∘ ∅) ] and keeps LHS unchanged
+    -- So we need both sides to be [ A ^ (s ∘ ∅) ]
+    ax-subst : [ A ^ (s ∘ ∅) ] ⊢ [ A ^ (s ∘ ∅) ]
+    ax-subst = subst (λ pos → [ A ^ pos ] ⊢ [ A ^ pos ]) (sym (merge-∅-r s)) (Ax {A = A} {s = s})
 
-    -- After □⊢ {t = ε}: [ □ A ^ s ] ⊢ [ A ^ (s ∘ ε) ]
-    step1 : [ (□ A) ^ s ] ⊢ [ A ^ (s ∘ ε) ]
-    step1 = □⊢ {Γ = []} {A = A} {s = s} {t = ε} {Δ = [ A ^ (s ∘ ε) ]} ax-subst
+    -- After □⊢ {t = ∅}: [ □ A ^ s ] ⊢ [ A ^ (s ∘ ∅) ]
+    step1 : [ (□ A) ^ s ] ⊢ [ A ^ (s ∘ ∅) ]
+    step1 = □⊢ {Γ = []} {A = A} {s = s} {t = ∅} {Δ = [ A ^ (s ∘ ∅) ]} ax-subst
 
-    -- After ⊢♢ {t = ε}: [ □ A ^ s ] ⊢ [ ♢ A ^ s ]
+    -- After ⊢♢ {t = ∅}: [ □ A ^ s ] ⊢ [ ♢ A ^ s ]
     step2 : [ (□ A) ^ s ] ⊢ [ (♢ A) ^ s ]
-    step2 = ⊢♢ {t = ε} step1
+    step2 = ⊢♢ {t = ∅} step1
   in
   ⊢⇒ {Γ = []} {A = □ A} {s = s} {B = ♢ A} {Δ = []} step2
 
@@ -873,22 +873,22 @@ derive-D {A} {s} =
 derive-T : ∀ {A : Formula} {s : Position} → [] ⊢ [ (□ A ⇒ A) ^ s ]
 derive-T {A} {s} =
   let
-    -- □⊢ {t = ε} expects LHS: [ A ^ (s ∘ ε) ]
-    ax-subst-l : [ A ^ (s ∘ ε) ] ⊢ [ A ^ s ]
-    ax-subst-l = subst (λ pos → [ A ^ pos ] ⊢ [ A ^ s ]) (sym (merge-ε-r s)) (Ax {A = A} {s = s})
+    -- □⊢ {t = ∅} expects LHS: [ A ^ (s ∘ ∅) ]
+    ax-subst-l : [ A ^ (s ∘ ∅) ] ⊢ [ A ^ s ]
+    ax-subst-l = subst (λ pos → [ A ^ pos ] ⊢ [ A ^ s ]) (sym (merge-∅-r s)) (Ax {A = A} {s = s})
 
     -- After □⊢: [ □ A ^ s ] ⊢ [ A ^ s ]
     step1 : [ (□ A) ^ s ] ⊢ [ A ^ s ]
-    step1 = □⊢ {Γ = []} {A = A} {s = s} {t = ε} {Δ = [ A ^ s ]} ax-subst-l
+    step1 = □⊢ {Γ = []} {A = A} {s = s} {t = ∅} {Δ = [ A ^ s ]} ax-subst-l
   in
   ⊢⇒ {Γ = []} {A = □ A} {s = s} {B = A} {Δ = []} step1
 
 -- Axiom 4: □ A ⇒ □ □ A (specialized to empty position for weak completeness)
 -- Uses different tokens 0 and 1 for the two eigenposition extensions
-derive-Ax4 : ∀ {A : Formula} → [] ⊢ [ (□ A ⇒ □ (□ A)) ^ ε ]
+derive-Ax4 : ∀ {A : Formula} → [] ⊢ [ (□ A ⇒ □ (□ A)) ^ ∅ ]
 derive-Ax4 {A} =
   let s : Position
-      s = ε
+      s = ∅
       -- 0 and 1 are trivially fresh for empty position
       fresh-s-0 : 0 ∉Pos s
       fresh-s-0 = λ ()
@@ -979,10 +979,10 @@ derive-Ax4 {A} =
 --
 -- Step 6: Ax
 -- Axiom G specialized to empty position for weak completeness
-derive-AxC : ∀ {A : Formula} → [] ⊢ [ (♢ (□ A) ⇒ □ (♢ A)) ^ ε ]
+derive-AxC : ∀ {A : Formula} → [] ⊢ [ (♢ (□ A) ⇒ □ (♢ A)) ^ ∅ ]
 derive-AxC {A} =
   let s : Position
-      s = ε
+      s = ∅
       t = insertToken 0 s        -- position for □ A after ♢⊢
       r = insertToken 1 s        -- eigenposition for ⊢□
       δ = insertToken 1 t        -- shared position: insert 1 into (insert 0 s)
@@ -1036,7 +1036,7 @@ derive-AxC {A} =
             ax-subst'))))
 
 -- Completeness Theorem
-completeness : ∀ {A} → ⊢S4dot2 A → [] ⊢ [ A ^ ε ]
+completeness : ∀ {A} → ⊢S4dot2 A → [] ⊢ [ A ^ ∅ ]
 completeness (ax (P1 {A} {B})) = derive-P1
 completeness (ax P2) = derive-P2
 completeness (ax P3) = derive-P3
@@ -1048,9 +1048,9 @@ completeness (ax AxC) = derive-AxC
 completeness (MP {A} {B} p1 p2) =
   let
     -- MP : ⊢S4dot2 A → ⊢S4dot2 (A ⇒ B) → ⊢S4dot2 B
-    -- p1 : ⊢S4dot2 A  →  completeness p1 : [] ⊢ [ A ^ ε ]
-    -- p2 : ⊢S4dot2 (A ⇒ B)  →  completeness p2 : [] ⊢ [ (A ⇒ B) ^ ε ]
-    -- We need [] ⊢ [ B ^ ε ]
+    -- p1 : ⊢S4dot2 A  →  completeness p1 : [] ⊢ [ A ^ ∅ ]
+    -- p2 : ⊢S4dot2 (A ⇒ B)  →  completeness p2 : [] ⊢ [ (A ⇒ B) ^ ∅ ]
+    -- We need [] ⊢ [ B ^ ∅ ]
 
     -- Step 1: [ A ⇒ B ] ⊢ [ B ]
     -- Using ⇒⊢ on Ax {B} and completeness p1
@@ -1060,12 +1060,12 @@ completeness (MP {A} {B} p1 p2) =
     -- Result: [] ,, [] ,, [ A ⇒ B ] ⊢ [ B ] ,, []
     -- i.e. [ A ⇒ B ] ⊢ [ B ]
 
-    proof-A⇒B-to-B : [ (A ⇒ B) ^ ε ] ⊢ [ B ^ ε ]
-    proof-A⇒B-to-B = ⇒⊢ {Γ₁ = []} {B = B} {s = ε} {Δ₁ = [ B ^ ε ]} {Γ₂ = []} {A = A} {Δ₂ = []}
-                       (Ax {A = B} {s = ε}) (completeness p1)
+    proof-A⇒B-to-B : [ (A ⇒ B) ^ ∅ ] ⊢ [ B ^ ∅ ]
+    proof-A⇒B-to-B = ⇒⊢ {Γ₁ = []} {B = B} {s = ∅} {Δ₁ = [ B ^ ∅ ]} {Γ₂ = []} {A = A} {Δ₂ = []}
+                       (Ax {A = B} {s = ∅}) (completeness p1)
 
     -- Step 2: Cut with p2 (which proves A ⇒ B)
-    -- completeness p2 : [] ⊢ [ (A ⇒ B) ^ ε ]
+    -- completeness p2 : [] ⊢ [ (A ⇒ B) ^ ∅ ]
     -- Cut : (Γ₁ ⊢ [ C ] ,, Δ₁) → (Γ₂ ,, [ C ] ⊢ Δ₂) → (Γ₁ ,, Γ₂ ⊢ Δ₁ ,, Δ₂)
     -- Γ₁=[], Δ₁=[]. C = A ⇒ B.
     -- Γ₂=[], Δ₂=[B].
@@ -1076,13 +1076,13 @@ completeness (MP {A} {B} p1 p2) =
 completeness (NEC {A} p) =
   let
     -- p : ⊢ A
-    -- IH: [] ⊢ [ A ^ ε ]
-    -- Goal: [] ⊢ [ (□ A) ^ ε ]
+    -- IH: [] ⊢ [ A ^ ∅ ]
+    -- Goal: [] ⊢ [ (□ A) ^ ∅ ]
     -- Use ⊢□ with new signature.
-    -- Γ=[], Δ=[], s=ε, eigenposition x chosen to be fresh.
-    -- Premise: [] ⊢ [ A ^ (ε ∘ singleton-pos x) ] = [] ⊢ [ A ^ singleton-pos x ]
+    -- Γ=[], Δ=[], s=∅, eigenposition x chosen to be fresh.
+    -- Premise: [] ⊢ [ A ^ (∅ ∘ singleton-pos x) ] = [] ⊢ [ A ^ singleton-pos x ]
 
-    ih : [] ⊢ [ A ^ ε ]
+    ih : [] ⊢ [ A ^ ∅ ]
     ih = completeness p
 
     -- Use a fresh token greater than any eigenposition in ih
@@ -1100,7 +1100,7 @@ completeness (NEC {A} p) =
     lifted = lift-proof t ih nc
 
     -- x is fresh for empty position (trivially true)
-    fresh-ε : x ∉Pos ε
-    fresh-ε = λ ()
+    fresh-∅ : x ∉Pos ∅
+    fresh-∅ = λ ()
 
-  in ⊢□ {x = x} fresh-ε (TokenFresh-[] {x = x}) (TokenFresh-[] {x = x}) lifted
+  in ⊢□ {x = x} fresh-∅ (TokenFresh-[] {x = x}) (TokenFresh-[] {x = x}) lifted

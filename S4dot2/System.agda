@@ -212,7 +212,7 @@ fromList (x ∷ xs) = x LFSet.∷ fromList xs
 
 -- Lemma: unsortTokens factors through toList
 unsort-factor : ∀ (u : Position) → unsortTokens u ≡ fromList (toList u)
-unsort-factor ε = refl
+unsort-factor ∅ = refl
 unsort-factor (pos-cons x xs _) = cong (x LFSet.∷_) (unsort-factor xs)
 
 -- Injectivity of toList via position-inj

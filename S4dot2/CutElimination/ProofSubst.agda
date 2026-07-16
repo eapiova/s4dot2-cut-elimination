@@ -44,7 +44,7 @@ myMax-assoc (suc a) (suc b) zero = refl
 myMax-assoc (suc a) (suc b) (suc c) = cong suc (myMax-assoc a b c)
 
 maxTokenPos : Position → ℕ
-maxTokenPos ε = 0
+maxTokenPos ∅ = 0
 maxTokenPos (pos-cons x xs _) = x -- Since it is sorted descending, the first element is the max
 
 maxTokenCtx : Ctx → ℕ
@@ -72,8 +72,8 @@ freshTokenCtx Γ = suc (maxTokenCtx Γ)
 -- insertToken maintains sorted order (descending), so x is either the max or ≤ the max
 -- This is semantically true: insertToken x r contains x, and maxTokenPos returns the maximum
 x≤maxTokenPos-insertToken : ∀ x r → x ≤ maxTokenPos (insertToken x r)
-x≤maxTokenPos-insertToken x ε with triℕ x x
-... | tri-≡ _ _ _ = ≤-refl  -- insertToken x ε = [x], maxTokenPos = x
+x≤maxTokenPos-insertToken x ∅ with triℕ x x
+... | tri-≡ _ _ _ = ≤-refl  -- insertToken x ∅ = [x], maxTokenPos = x
 ... | tri-< x>x _ _ = ⊥-rec (<→≢ x>x refl)  -- impossible: x > x
 ... | tri-> _ _ x>x = ⊥-rec (<→≢ x>x refl)  -- impossible: x > x
 x≤maxTokenPos-insertToken x (pos-cons z zs z>zs) with triℕ x z
@@ -179,7 +179,7 @@ mem-++Pos-r {s} {t} {x} = merge-∈Pos-r x s t
 remove-++Pos-distrib : (x : Token) (s t : Position) → remove x (s ++Pos t) ≡ remove x s ++Pos remove x t
 remove-++Pos-distrib = remove-merge-distrib
 
-remove-singleton-self : ∀ y → remove y (singleton-pos y) ≡ ε
+remove-singleton-self : ∀ y → remove y (singleton-pos y) ≡ ∅
 remove-singleton-self y with discreteℕ y y
 ... | yes _ = refl
 ... | no y≢y = ⊥-rec (y≢y refl)
@@ -200,7 +200,7 @@ substPos-roundtrip x y s y∉s | yes xIn with y ∈Pos? ((remove x s) ++Pos sing
       ∙ cong (λ r → (r ++Pos remove y (singleton-pos y)) ++Pos singleton-pos x)
              (remove-∉Pos-id y (remove x s) (∉Pos-remove x s y∉s))
       ∙ cong (λ r → (remove x s ++Pos r) ++Pos singleton-pos x) (remove-singleton-self y)
-      ∙ cong (_++Pos singleton-pos x) (merge-ε-r (remove x s))
+      ∙ cong (_++Pos singleton-pos x) (merge-∅-r (remove x s))
       ∙ insertToken-remove-cancel x s xIn
 
 substCtx-roundtrip : ∀ x y Γ → TokenFresh y Γ
@@ -1031,12 +1031,12 @@ TokenFresh-split ((A ^ s) ∷ Γ) Δ x (x∉s , fr) =
 -- Singleton membership: x ∈ [y] implies x ≡ y
 ∈Pos-singleton : (x y : Token) → x ∈Pos (singleton-pos y) → x ≡ y
 ∈Pos-singleton x y (inl x≡y) = x≡y
-∈Pos-singleton x y (inr x∈ε) = ⊥-rec x∈ε
+∈Pos-singleton x y (inr x∈∅) = ⊥-rec x∈∅
 
 -- Singleton non-membership: x ≢ y implies x ∉ [y]
 ∉Pos-singleton : (x y : Token) → x ≢ y → x ∉Pos (singleton-pos y)
 ∉Pos-singleton x y x≢y (inl x≡y) = x≢y x≡y
-∉Pos-singleton x y x≢y (inr x∈ε) = x∈ε
+∉Pos-singleton x y x≢y (inr x∈∅) = x∈∅
 
 -- Helper: extract the < proof from >ᴴ for non-empty lists
 >ᴴ-head< : ∀ {y z zs z>zs} → y >ᴴ pos-cons z zs z>zs → z < y
@@ -1048,15 +1048,15 @@ TokenFresh-split ((A ^ s) ∷ Γ) Δ x (x∉s , fr) =
 >-implies->0 {n} {y} n>y = ≤-trans (suc-≤-suc zero-≤) n>y
 
 -- Helper: if n > y and y is the head of SDL (pos-cons y ys y>ys), then n > maxTokenPos ys
--- maxTokenPos ys is either 0 (if ys = ε) or the head of ys (which is < y)
+-- maxTokenPos ys is either 0 (if ys = ∅) or the head of ys (which is < y)
 >-head->-maxTail : (n y : Token) (ys : Position) (y>ys : y >ᴴ ys) → n > y → n > maxTokenPos ys
->-head->-maxTail n y ε _ n>y = >-implies->0 n>y  -- maxTokenPos ε = 0, need n > 0
+>-head->-maxTail n y ∅ _ n>y = >-implies->0 n>y  -- maxTokenPos ∅ = 0, need n > 0
 >-head->-maxTail n y (pos-cons z zs z>zs) y>ys n>y = <-trans (>ᴴ-head< y>ys) n>y
 
 -- maxTokenPos is bounded by the head for all elements
 -- If n > head of SDL, then n is not in the SDL
 >-maxTokenPos-∉Pos : (n : Token) (s : Position) → n > maxTokenPos s → n ∉Pos s
->-maxTokenPos-∉Pos n ε _ ()  -- Nothing is in ε
+>-maxTokenPos-∉Pos n ∅ _ ()  -- Nothing is in ∅
 >-maxTokenPos-∉Pos n (pos-cons y ys y>ys) n>y (inl n≡y) =
   -- n ≡ y contradicts n > y
   <→≢ n>y (sym n≡y)

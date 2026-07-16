@@ -120,7 +120,7 @@ module FiniteModelCore
   Interpretation = Token → World
 
   ρ-pos : Interpretation → Position → World
-  ρ-pos ρ ε = m
+  ρ-pos ρ ∅ = m
   ρ-pos ρ (pos-cons x s _) = (ρ x) ⊔ (ρ-pos ρ s)
 
   _[_/_] : Interpretation → Token → World → Interpretation
@@ -143,7 +143,7 @@ module FiniteModelCore
   -- Key lemma: now _⊔_ is a fixed parameter, not a projection
   ρ-pos-update-not-in : (ρ : Interpretation) (x : Token) (v : World) (s : Position)
                       → x ∉Pos s → ρ-pos (ρ [ x / v ]) s ≡ ρ-pos ρ s
-  ρ-pos-update-not-in ρ x v ε _ = refl
+  ρ-pos-update-not-in ρ x v ∅ _ = refl
   ρ-pos-update-not-in ρ x v (pos-cons y s pf) x∉ys =
     cong₂ _⊔_
           (update-different ρ x y v (λ eq → x∉ys (inl eq)))
@@ -277,7 +277,7 @@ module FiniteModelCore
 
   subset-to-≤ : (ρ : Interpretation) (s t : Position) → s ⊑ t
               → (ρ-pos ρ s) ≤? (ρ-pos ρ t) ≡ true
-  subset-to-≤ ρ ε t sub = m-min (ρ-pos ρ t)
+  subset-to-≤ ρ ∅ t sub = m-min (ρ-pos ρ t)
   subset-to-≤ ρ (pos-cons x s pf) t sub =
     ≤-lub (ρ x) (ρ-pos ρ s) (ρ-pos ρ t)
           (∈Pos→≤-pos ρ x t (sub x (inl refl)))
@@ -308,7 +308,7 @@ module FiniteModelCore
   ρ-pos-insertToken : (ρ : Interpretation) (t : Token) (s : Position)
                     → t ∉Pos s
                     → ρ-pos ρ (insertToken t s) ≡ (ρ t) ⊔ (ρ-pos ρ s)
-  ρ-pos-insertToken ρ t ε _ with triℕ t t
+  ρ-pos-insertToken ρ t ∅ _ with triℕ t t
   ... | tri-≡ _ _ _ = refl
   ... | tri-< t>t _ _ = ⊥-rec (>-irreflexive t>t)
   ... | tri-> _ _ t>t = ⊥-rec (>-irreflexive t>t)
