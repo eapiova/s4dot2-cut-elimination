@@ -30,7 +30,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: agda/cubical
-          ref: v0.9
+          # v0.9 lacks maxSuc (used by S4dot2.CutElimination.Defs); pin the
+          # post-v0.9 commit the sources are verified against locally
+          ref: 497188400c09bc2836d46aa22cdc8badfdf4dd28
           path: cubical
 
       - name: Setup GHC
@@ -57,8 +59,8 @@ jobs:
           path: |
             _build/
             cubical/_build/
-          key: agda-${{ hashFiles('S4dot2/**/*.agda', 'PaperIndex.agda') }}
-          restore-keys: agda-
+          key: agda-cubical49718840-${{ hashFiles('S4dot2/**/*.agda', 'PaperIndex.agda') }}
+          restore-keys: agda-cubical49718840-
 
       - name: Generate HTML
         run: agda -i . -i cubical --html --html-dir=html PaperIndex.agda
