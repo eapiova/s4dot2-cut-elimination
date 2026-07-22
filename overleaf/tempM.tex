@@ -942,7 +942,7 @@ The Mix Lemma~\ref{lem:mix} shows that a single cut application can be eliminate
 
 We show the type of the main function:
 
-\ExecuteMetaData[EPTCS/CutElimCode.tex]{cutElim}
+\ExecuteMetaData[CutElimCode.tex]{cutElim}
 
 \noindent
 The function \texttt{CutElimination} takes a proof $\Pi$ and returns a pair $(\Pi^*, p)$ where $\Pi^*$ proves the same sequent and $p$ witnesses $\delta[\Pi^*] = 0$.
@@ -1004,7 +1004,7 @@ Thus, any provable sequent has a cut-free proof.
 
 We also display the type signature of the Mix Lemma, which constitutes the core of the elimination procedure:
 
-\ExecuteMetaData[EPTCS/CutElimCode.tex]{mixType}
+\ExecuteMetaData[CutElimCode.tex]{mixType}
 
 \noindent
 The \texttt{mix} function takes two proofs $\Pi$ and $\Pi'$ whose ranks are bounded by the degree $n$ of the cut formula $A^{s}$, and returns a proof $\Pi_0$ of the combined sequent, with all occurrences of $A^{s}$ removed from the left premise's succedent and the right premise's antecedent, satisfying $\delta[\Pi_0] \leq n$.
@@ -1300,7 +1300,7 @@ The proof proceeds by induction on the derivation of $\seq{\Gamma}{\Delta}$. The
 In the \agda{} formalisation, the soundness function takes an additional \texttt{ModalSemantics} parameter that provides the semantic witnesses for the modal cases:
 
 \begingroup\footnotesize
-\ExecuteMetaData[EPTCS/CutElimCode.tex]{finiteSoundness}
+\ExecuteMetaData[CutElimCode.tex]{finiteSoundness}
 \endgroup
 
 \noindent
